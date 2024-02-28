@@ -1,7 +1,8 @@
 import numpy as np
 import wavio
+import matplotlib.pyplot as plt
 
-from signals import Signal
+from signals import Signal, Sine
 
 folder_name = "generated_audio"
 
@@ -18,6 +19,17 @@ def generate_single_frequency(frequency, sample_duration, sample_rate, sample_bi
 if __name__ == "__main__":
     frequency = 440
     sample_duration = 5
+
+    test_signal_1000 = Sine(frequency=frequency, time_length=sample_duration, sample_rate=1000, bitrate=8)
+    test_signal_44100 = Sine(frequency=frequency, time_length=sample_duration, sample_rate=44100, bitrate=8)
+
+    num_waves_to_plot = 5
+
+    test_signal_1000.plot_waveform(num_waves=num_waves_to_plot)
+    test_signal_44100.plot_waveform(num_waves=num_waves_to_plot)
+
+    plt.show()
+    raise TypeError
 
     sample_rate = 1000
     sample_bit_rate = 1
