@@ -1,6 +1,7 @@
 import numpy as np
 import wavio
 
+from signals import Signal
 
 folder_name = "generated_audio"
 

@@ -1,4 +1,3 @@
-import math
 from typing import Type
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
@@ -27,6 +26,7 @@ def FFT_of_Wav_File(sample_rate, data, frequency):
     plt.plot(abs(c[:(d-1)]), label=f'Sample Rate = {sample_rate}')
     plt.xlim([(1-plot_range) * frequency * time_length, (1+plot_range) * frequency * time_length])
     plt.legend()
+
 
 def normalize_data(data: np.ndarray):
     normalize_factor = 1
@@ -63,16 +63,20 @@ def plot_waveform(sample_rate, data, frequency, num_waves):
     # plt.show()
 
 
+def get_files_from_folder(folder: str) -> list[str]:
+    return sorted([f'{folder}/{filename}' for filename in os.listdir(folder)])
+
+
 if __name__ == "__main__":
     frequency = 440
     num_periods = 0.1
     plt.close()
 
     # FFT_of_Wav_File(sample_rate, data)
-    data_folder = "audio/"
-    for filename in sorted(os.listdir(data_folder)):
+    data_folder = "generated_audio"
+    for filename in get_files_from_folder(data_folder):
         print(filename)
-        sample_rate, data = open_wav_file(f'{data_folder}{filename}')
+        sample_rate, data = open_wav_file(f'{data_folder}/{filename}')
         data = normalize_data(data)
         plot_waveform(sample_rate, data, frequency, num_periods)
         # FFT_of_Wav_File(sample_rate, data, frequency)
