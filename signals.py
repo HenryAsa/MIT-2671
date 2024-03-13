@@ -1,6 +1,7 @@
 ## SOURCE: https://gist.github.com/nhrade/7cfcdf9e00602e52f516f90315b5d26e
 ## SOURCE: https://medium.com/@noahhradek/sound-synthesis-in-python-4e60614010da
 
+import math
 from random import sample
 import numpy as np
 from scipy.io.wavfile import write, read
@@ -10,6 +11,8 @@ from scipy import interpolate
 import matplotlib.pyplot as plt
 from pydub import AudioSegment, playback
 import wavio
+
+import utils
 
 DEFAULT_SAMPLE_RATE = 44100.0
 DEFAULT_BITRATE = 8
@@ -42,6 +45,9 @@ class Signal:
         self.ys = ys.astype(np.float32)
         self.bitrate = bitrate
 
+    def get_discretized_waveform_by_bitrate(self):
+        return utils.map_to_discrete(self.ys, [-1, 1], 2**(self.bitrate), [-1, 1])
+
     # add two signals of the same size
     def __add__(self, other):
         if self.ys.shape[0] != other.ys.shape[0]:
@@ -70,7 +76,7 @@ class Signal:
                 )
             return Signal(self.time_length, np.multiply(self.ys, other), self.sample_rate, self.bitrate)
         return None
-    
+
     def __rmul__(self, other):
         return self.__mul__(other)
 
@@ -112,13 +118,26 @@ class Signal:
 
     # read from wave file
     # filename - string name of file
-    @staticmethod
-    def from_wav(filename):
+    def _from_wav_helper(self, filename):
         sample_rate, data = read(filename)
-        length = data.shape[0] / sample_rate
-        ys = data[:, 0] / np.max(np.abs(data[:, 0]), axis=0) # left channel
-        ts = np.linspace(0., length, data.shape[0])
-        return Signal(length, ys, sample_rate=sample_rate)  ## TODO: ENCODE BITRATE DATA
+        length = int(data.shape[0] / sample_rate)
+
+        if data.ndim == 1:
+            ys = (data / np.max(np.abs(data), axis=0)).astype(np.float32)
+        else:
+            ys = (data[:, 0] / np.max(np.abs(data[:, 0]), axis=0)).astype(np.float32) # left channel
+
+        return {"length": length, "ys": ys, "sample_rate": sample_rate}  ## TODO: ENCODE BITRATE DATA
+
+    # read from wave file
+    # filename - string name of file
+    @classmethod
+    def from_wav(cls, filename: str, bitrate: int):
+        parameter_values = cls._from_wav_helper(filename)
+        sample_rate = parameter_values["sample_rate"]
+        ys = parameter_values["ys"]
+        length = parameter_values["length"]
+        return Signal(length, ys, sample_rate=sample_rate, bitrate=bitrate)  ## TODO: ENCODE BITRATE DATA
 
     # calculates the fft of the signal
     def fft(self):
@@ -132,7 +151,7 @@ class Signal:
 
     # plot frequencies in range rng
     # rng - tuple range of frequencies
-    def plot_fft(self, rng=(0, 2000)):
+    def plot_fft(self, rng=(0, 2000)) -> None:
         xf, yf = self.fft()
         n = self.ys.shape[0]
         plt.plot(xf, 2.0/n * np.abs(yf[:n//2]))
@@ -146,7 +165,7 @@ class Signal:
     # plot with num_samples, discrete shows only discrete signal
     # num_samples - int number of samples to plot
     # discrete - bool whether to plot on discrete scale
-    def plot(self, num_seconds, discrete=False):
+    def plot(self, num_seconds, discrete=False) -> None:
         num_samples = min(round(num_seconds * self.sample_rate), len(self.ts))
         if discrete:
             plt.scatter(self.ts[:num_samples], self.ys[:num_samples])
@@ -154,7 +173,7 @@ class Signal:
             plt.plot(self.ts[:num_samples], self.ys[:num_samples])
         plt.show()
 
-    def plot_waveform(self, num_points: int):
+    def plot_waveform(self, num_points: int) -> None:
         assert num_points <= len(self.ys), f'Attempting to plot more points of the waveform than the waveform has.  Desired Plotting Range: {num_points}.  Max Plotting Range: {len(self.ys)}'
 
         plt.step(self.ts[:num_points], self.ys[:num_points], where='mid', label=f'{self.bitrate} bit, {self.sample_rate} Hz')
@@ -168,7 +187,7 @@ class Signal:
         # plt.show()
 
     # plot spectrogram image
-    def plot_spectrogram(self):
+    def plot_spectrogram(self) -> None:
         f, t, Sxx = signal.spectrogram(self.ys, self.sample_rate)
         plt.pcolormesh(t, f, Sxx, shading='gouraud')
         plt.ylabel('Frequency [Hz]')
@@ -176,11 +195,11 @@ class Signal:
         plt.show()
 
     # get size of signal in number of samples
-    def size(self):
+    def size(self) -> int:
         return self.ys.shape[0]
 
     # get length of sample in seconds
-    def length(self):
+    def length(self) -> float:
         return self.ys.shape[0] / self.sample_rate
 
     # get resampled signal from start to end
@@ -198,11 +217,11 @@ class Signal:
         fy = signal.sosfilt(sos, self.ys)
         return Signal(self.time_length, fy, sample_rate=self.sample_rate, bitrate=self.bitrate)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'Signal[Length: {self.time_length} sec, SampleRate: {self.sample_rate} Hz, BitRate: {self.bitrate} bit]'
 
 class Sine(Signal):
-    def __init__(self, frequency: float, time_length: float, sample_rate: int, bitrate: int) -> None:
+    def __init__(self, frequency: float, time_length: float, sample_rate: int, bitrate: int, ys: np.ndarray = None, discretize: bool = False) -> None:
         """Sine Signal Waveform
 
         Parameters
@@ -219,7 +238,15 @@ class Sine(Signal):
         self.frequency = frequency
         self.time_length = time_length
         self.ts = np.linspace(0, time_length, time_length * sample_rate, dtype=np.float32)
-        self.ys = np.sin(2 * np.pi * frequency * self.ts)
+
+        if ys is None:
+            self.ys = 0.5*(np.sin(2 * np.pi * frequency * self.ts)) + 0.5
+        else:
+            self.ys = ys
+        
+        if discretize is True:
+            self.ys = utils.map_to_discrete(self.ys, [0, 1], 2**bitrate, [0, 1])
+
         self.sample_rate = sample_rate
         self.bitrate = bitrate
 
@@ -229,6 +256,14 @@ class Sine(Signal):
             sample_rate = sample_rate,
             bitrate = bitrate,
         )
+
+    @classmethod
+    def from_wav(cls, filename: str, bitrate: int, frequency: int):
+        parameter_values = cls._from_wav_helper(cls, filename)
+        sample_rate = parameter_values["sample_rate"]
+        ys = parameter_values["ys"]
+        length = parameter_values["length"]
+        return Sine(frequency, length, sample_rate=sample_rate, bitrate=bitrate, ys=ys)  ## TODO: ENCODE BITRATE DATA
 
     def plot_waveform(self, num_waves: float) -> None:
         num_points = round(num_waves * self.sample_rate / self.frequency)
@@ -241,21 +276,21 @@ class Sine(Signal):
 
 
 class Square(Signal):
-    def __init__(self, frequency, amp=1., length=1):
+    def __init__(self, frequency, amp=1., length=1) -> None:
         self.frequency = frequency
         self.ts = np.linspace(0, length, length * DEFAULT_SAMPLE_RATE, dtype=np.float32)
         self.ys = amp * signal.square(2 * np.pi * frequency * self.ts)
         super().__init__(self.time_length, self.ys)
 
 class Sawtooth(Signal):
-    def __init__(self, freq, amp=1., length=1):
+    def __init__(self, freq, amp=1., length=1) -> None:
         self.ts = np.linspace(0, length, length * DEFAULT_SAMPLE_RATE, dtype=np.float32)
         self.ys = amp * signal.sawtooth(2 * np.pi * freq * self.ts)
         super().__init__(self.time_length, self.ys)
 
 
 class Chirp(Signal):
-    def __init__(self, f0, t1, f1, amp=1., length=1):
+    def __init__(self, f0, t1, f1, amp=1., length=1) -> None:
         self.ts = np.linspace(0, length, length * DEFAULT_SAMPLE_RATE, dtype=np.float32)
         self.ys = amp * signal.chirp(self.ts, f0, t1, f1)
         super().__init__(self.time_length, self.ys)
