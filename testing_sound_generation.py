@@ -8,6 +8,4 @@ if __name__ == "__main__":
 
     for sample_rate in [1000, 44100, 88200, 96000, 192000]:
         for bit_depth in [8, 16, 24]:
-            generate_single_frequency(frequency, sample_duration, sample_rate, bit_depth=bit_depth)
-            generate_single_frequency(frequency, sample_duration, sample_rate, bit_depth=bit_depth)
-            generate_single_frequency(frequency, sample_duration, sample_rate, bit_depth=bit_depth)
+            generate_single_frequency(frequency, sample_rate, bit_depth, sample_duration)
