@@ -37,7 +37,7 @@ if __name__ == "__main__":
         print(dsd_data[::5000].tolist())
         print("Here")
         ## COMPUTER KILLER ##
-        fft_plot(dsd_data[::5000].tolist(), dsd_file.frame_rate)
+        # fft_plot(dsd_data[::5000].tolist(), dsd_file.frame_rate)
         #####################
 
         # print(dsd_file)
