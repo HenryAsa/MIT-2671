@@ -33,7 +33,7 @@ def read_simple_audio_samples(
     This function reads audio files from a given directory, extracts
     their parameters based on their filenames, and uses these
     parameters to play and record the audio samples simultaneously
-    using the 'simultaneous_record_playback' function. The resulting
+    using the 'simultaneous_record_playback' function.  The resulting
     audio files are saved into a structured directory format based on
     their frequency.
 
@@ -41,12 +41,12 @@ def read_simple_audio_samples(
     ----------
     audio_samples_directory : str, optional
         The directory containing the audio sample files to be
-        processed. These files should be named in a specific format to
+        processed.  These files should be named in a specific format to
         extract parameters like frequency, sample rate, and bit depth.
         The default directory is "audio_test_samples".
     output_directory : str, optional
         The base directory where the processed audio files will be
-        saved. The files are organized into subdirectories based on
+        saved.  The files are organized into subdirectories based on
         their frequencies. The default directory is "generated_audio".
 
     Notes
@@ -57,7 +57,7 @@ def read_simple_audio_samples(
     represents the frequency, S the sample rate, and B the bit depth.
 
     This function utilizes the 'simultaneous_record_playback' function
-    to play and record the audio samples. It also creates necessary
+    to play and record the audio samples.  It also creates necessary
     directories based on the audio frequency extracted from the file
     names.
 
@@ -115,8 +115,8 @@ def simultaneous_record_playback(
 
     This function plays back an audio file while simultaneously
     recording audio input.  The recorded audio is then saved to a
-    specified directory. The function allows setting of sample rate
-    and bit depth for the recording. The output filename is optional;
+    specified directory.  The function allows setting of sample rate
+    and bit depth for the recording.  The output filename is optional;
     if not provided, it is generated automatically based on input
     filename, sample rate, and bit depth.
 
@@ -140,8 +140,8 @@ def simultaneous_record_playback(
     Notes
     -----
     The function sets the sound device's default input and output
-    channels before starting the playback and recording processes. The
-    recording duration is equal to the duration of the input audio
+    channels before starting the playback and recording processes.
+    The recording duration is equal to the duration of the input audio
     file.
 
     Callback function for the input stream and queue for handling
@@ -157,8 +157,9 @@ def simultaneous_record_playback(
             bit_depth=24,
             output_directory='./recordings'
         )
-    This will play 'input.wav' and record simultaneously, saving the recorded audio in 
-    './recordings' directory with an automatically generated filename.
+    This will play 'input.wav' and record simultaneously, saving the
+    recorded audio in './recordings' directory with an automatically
+    generated filename.
     """
 
     sd.default.device = 3, 2
