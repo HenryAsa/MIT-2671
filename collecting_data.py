@@ -8,7 +8,7 @@ import queue
 import soundfile as sf
 import sys
 
-from constants import DATA_DIRECTORY, RECORDING_SAMPLE_RATE
+from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, RECORDING_SAMPLE_RATE
 from signals import Signal, Sine
 from audio_generation import generate_audio_files
 
@@ -41,9 +41,9 @@ def read_simple_audio_samples(
     ----------
     audio_samples_directory : str, optional
         The directory containing the audio sample files to be
-        processed.  These files should be named in a specific format to
-        extract parameters like frequency, sample rate, and bit depth.
-        The default directory is "audio_test_samples".
+        processed.  These files should be named in a specific format
+        to extract parameters like frequency, sample rate, and bit
+        depth.  The default directory is "audio_test_samples".
     output_directory : str, optional
         The base directory where the processed audio files will be
         saved.  The files are organized into subdirectories based on
@@ -85,10 +85,10 @@ def read_simple_audio_samples(
 
     for filename in audio_files:
         # READ AUDIO FILES
-        file_params = str(filename).split("_")
-        filetype = file_params[2].split("/")[-1]
-        freq = int(file_params[3][1:])
-        sample_rate = int(file_params[4][1:])
+        file_params = str(filename).split("/")[-1].split("_")
+        filetype = file_params[0]
+        freq = int(file_params[-3][1:])
+        sample_rate = int(file_params[-2][1:])
         bit_depth = int(file_params[-1].split(".")[0][1:])
         output_filename = f'result_{filetype}_F{freq}_S{sample_rate}_B{bit_depth}.wav'
 
@@ -183,7 +183,7 @@ def simultaneous_record_playback(
         ) as file:
         with sd.InputStream(
                 samplerate=RECORDING_SAMPLE_RATE,
-                channels=1,
+                channels=audio_data.ndim,
                 callback=callback_in
             ):
             sd.play(data = audio_data, samplerate=sample_rate, blocking=False)
@@ -196,8 +196,8 @@ def simultaneous_record_playback(
 
 if __name__ == "__main__":
     initial_time = datetime.now().strftime("%m-%d_%H-%M")
-    # shared_output_directory = f'{DATA_DIRECTORY}/{initial_time}'
+    shared_output_directory = f'{DATA_DIRECTORY}/{initial_time}'
 
-    # generate_audio_files(output_directory=f'{shared_output_directory}/audio_test_samples')
-    # read_simple_audio_samples(audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')
-    read_simple_audio_samples(audio_samples_directory="music", output_directory=f'music')
+    generate_audio_files(output_directory=f'{shared_output_directory}/{DATA_AUDIO_SAMPLES_DIRECTORY}')
+    read_simple_audio_samples(audio_samples_directory=f'{shared_output_directory}/{DATA_AUDIO_SAMPLES_DIRECTORY}', output_directory=f'{shared_output_directory}/{DATA_RECORDED_SAMPLES_DIRECTORY}')
+    # read_simple_audio_samples(audio_samples_directory="music", output_directory=f'music')

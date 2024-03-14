@@ -7,12 +7,7 @@ import numpy as np
 import os
 # from pylab import *
 from utils import map_to_discrete
-
-
-DATA_DIRECTORY = "data"
-"""Default directory containing all of the raw data"""
-RECORDED_BIT_DEPTH = 32
-"""Default bit depth that the recordings were taken at"""
+from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, RECORDED_BIT_DEPTH, RECORDED_SAMPLE_FILENAME_PREFIX
 
 
 def open_wav_file(filename: str):
@@ -87,12 +82,9 @@ def get_filetype_from_folder(folder: str, filetype: str) -> list[str]:
 if __name__ == "__main__":
 
     time_folder = f'03-12_23-18'
-    audio_samples = "audio_test_samples"
-    recorded_samples = "recorded_samples"
-    recorded_sample_file_prefix = "result_"
 
-    recorded_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder}/{recorded_samples}'
-    audio_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder}/{audio_samples}'
+    recorded_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder}/{DATA_RECORDED_SAMPLES_DIRECTORY}'
+    audio_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder}/{DATA_AUDIO_SAMPLES_DIRECTORY}'
 
     recorded_filepaths = set(get_filetype_from_folder(recorded_samples_folder_path, '.wav'))
     audio_samples_filepaths = set(get_filetype_from_folder(audio_samples_folder_path, '.wav'))
@@ -101,7 +93,7 @@ if __name__ == "__main__":
     plt.close()
 
     for filename in sorted(recorded_filepaths):
-        file_params = filename.split(recorded_sample_file_prefix)[1].split("_")
+        file_params = filename.split(RECORDED_SAMPLE_FILENAME_PREFIX)[1].split("_")
         filetype = file_params[0]
         frequency = int(file_params[1][1:])
         sample_rate = int(file_params[2][1:])
@@ -114,7 +106,7 @@ if __name__ == "__main__":
         data = normalize_data(data)
         plot_waveform(data, sample_rate, frequency, bit_depth, num_periods)
         
-        original_audio_sample = filename.replace(recorded_samples, audio_samples).replace(recorded_sample_file_prefix, "")
+        original_audio_sample = filename.replace(DATA_RECORDED_SAMPLES_DIRECTORY, DATA_AUDIO_SAMPLES_DIRECTORY).replace(RECORDED_SAMPLE_FILENAME_PREFIX, "")
         if original_audio_sample in audio_samples_filepaths:
             og_sample_rate, og_data = open_wav_file(original_audio_sample)
             og_data = normalize_data(og_data)

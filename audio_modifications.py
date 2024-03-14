@@ -1,7 +1,8 @@
 from datetime import datetime
 import os
+from pathlib import Path
 from pydub import AudioSegment
-from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, MP3_BITRATES, RECORDED_SAMPLE_FILENAME_PREFIX
+from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, MP3_BITRATES, RECORDED_SAMPLE_FILENAME_PREFIX
 from collecting_data import simultaneous_record_playback
 import numpy as np
 import soundfile as sf
@@ -58,6 +59,8 @@ def crop_audio(input_file: str, start_ms: int, end_ms: int, output_directory: st
     audio: AudioSegment = AudioSegment.from_file(input_file, format=file_format)
 
     cropped_audio: AudioSegment = audio[start_ms:end_ms]
+    ## TODO: MIGHT REMOVE THIS - SEE https://github.com/jiaaro/pydub/blob/master/API.markdown#audiosegmentapply_gain_stereo FOR MORE DETAILS
+    cropped_audio.set_channels(1)
     os.makedirs(output_directory, exist_ok=True)
     cropped_audio.export(f'{output_directory}/{output_filename}', format=file_format if file_format != 'flac' else 'wav')
 
@@ -122,6 +125,7 @@ if __name__ == "__main__":
 
     initial_time = datetime.now().strftime("%m-%d_%H-%M")
     samples_output_directory = f'{DATA_DIRECTORY}/{initial_time}/{DATA_AUDIO_SAMPLES_DIRECTORY}'
+    recorded_output_directory = f'{DATA_DIRECTORY}/{initial_time}/{DATA_RECORDED_SAMPLES_DIRECTORY}'
 
     audio_samples = {
         "hotel_california_intro": {
@@ -150,3 +154,22 @@ if __name__ == "__main__":
             original_audio=cropped_audio_sample,
             output_directory=samples_output_directory,
         )
+
+
+    audio_files = sorted(str(filename) for filename in Path(samples_output_directory).rglob('*.wav'))
+    for filename in audio_files:
+        file_params = str(filename).split("/")[-1].split("_")
+        filetype = file_params[2].split("/")[-1]
+        sample_rate = int(file_params[-2][1:])
+        bit_depth = int(file_params[-1].split(".")[0][1:])
+        output_file_directory = f'{recorded_output_directory}/{filename.split("/")[-2]}'
+        output_filename = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{filename.split("/")[-1]}'
+        os.makedirs(output_file_directory, exist_ok=True)
+        simultaneous_record_playback(
+            input_filename=filename,
+            sample_rate=sample_rate,
+            bit_depth=bit_depth,
+            output_directory=output_file_directory,
+            output_filename=output_filename,
+        )
+            # audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')
