@@ -59,8 +59,11 @@ def crop_audio(input_file: str, start_ms: int, end_ms: int, output_directory: st
     audio: AudioSegment = AudioSegment.from_file(input_file, format=file_format)
 
     cropped_audio: AudioSegment = audio[start_ms:end_ms]
+
     ## TODO: MIGHT REMOVE THIS - SEE https://github.com/jiaaro/pydub/blob/master/API.markdown#audiosegmentapply_gain_stereo FOR MORE DETAILS
     cropped_audio.set_channels(1)
+    #############################
+
     os.makedirs(output_directory, exist_ok=True)
     cropped_audio.export(f'{output_directory}/{output_filename}', format=file_format if file_format != 'flac' else 'wav')
 
