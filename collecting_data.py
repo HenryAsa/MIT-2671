@@ -17,7 +17,6 @@ RECORDING_SAMPLE_RATE = 96000
 """Default sampling rate of 96 kHz for recorded samples"""
 
 
-
 q = queue.Queue()
 
 def callback_in(indata, frames, time, status):
