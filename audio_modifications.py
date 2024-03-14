@@ -53,18 +53,10 @@ def crop_audio(input_file: str, start_ms: int, end_ms: int, output_filename: str
     audio: AudioSegment = AudioSegment.from_file(input_file, format=file_format)
 
     cropped_audio: AudioSegment = audio[start_ms:end_ms]
-
     cropped_audio.export(output_filename, format=file_format)
     
     return cropped_audio
 
-    # sf.write(
-    #     file=f'{output_filename.split(".")[0]}_24.{file_format}',
-    #     data=np.frombuffer(cropped_audio._data,
-    #     dtype=np.int32).reshape(-1, cropped_audio.channels),
-    #     samplerate=cropped_audio.frame_rate,
-    #     subtype='PCM_32',
-    # )
 
 def modify_audio_sample(
         audio_segment: AudioSegment,
@@ -91,4 +83,9 @@ def modify_audio_sample(
 
 if __name__ == "__main__":
 
-    cropped_audio = crop_audio("1-Hotel California.flac", 0, 9000, "music/CROPPED.wav")
+    cropped_audio_sample = crop_audio(
+            input_file="music/Hotel_California_S192000_B24.flac",
+            start_ms=0,
+            end_ms=9000,
+            output_filename="music/CROPPED.wav"
+        )
