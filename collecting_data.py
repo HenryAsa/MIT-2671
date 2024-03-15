@@ -8,7 +8,7 @@ import queue
 import soundfile as sf
 import sys
 
-from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, RECORDING_SAMPLE_RATE
+from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, RECORDED_SAMPLE_FILENAME_PREFIX, RECORDING_SAMPLE_RATE
 from signals import Signal, Sine
 from audio_generation import generate_audio_files
 
@@ -90,14 +90,12 @@ def read_simple_audio_samples(
         freq = int(file_params[-3][1:])
         sample_rate = int(file_params[-2][1:])
         bit_depth = int(file_params[-1].split(".")[0][1:])
-        output_filename = f'result_{filetype}_F{freq}_S{sample_rate}_B{bit_depth}.wav'
+        output_filename = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{filetype}_F{freq}_S{sample_rate}_B{bit_depth}.wav'
 
         os.makedirs(f'{output_directory}/F{freq}', exist_ok=True)
 
         simultaneous_record_playback(
             input_filename=filename,
-            sample_rate=sample_rate,
-            bit_depth=bit_depth,
             output_directory=f'{output_directory}/F{freq}',
             output_filename=output_filename,
         )
@@ -105,8 +103,6 @@ def read_simple_audio_samples(
 
 def simultaneous_record_playback(
         input_filename: str,
-        sample_rate: int,
-        bit_depth: int,
         output_directory: str,
         output_filename: str = False,
     ):
@@ -125,10 +121,6 @@ def simultaneous_record_playback(
     input_filename : str
         The path to the audio file to be played back during the
         recording.
-    sample_rate : int
-        The sample rate in Hz for the audio recording and playback.
-    bit_depth : int
-        The bit depth for the recorded audio. Typically 16, 24, or 32.
     output_directory : str
         The directory where the recorded audio file will be saved.
     output_filename : str, optional
@@ -164,17 +156,15 @@ def simultaneous_record_playback(
 
     sd.default.device = 3, 2
 
-    print(input_filename)
-
     if output_filename is False:
-        output_filename = f'result_{input_filename.split(".")[0]}_S{sample_rate}_B{bit_depth}.wav'
+        output_filename = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{input_filename.split("/")[-1]}'
 
     audio_data, sample_rate = sf.read(input_filename)
     duration = len(audio_data)/sample_rate
-    print(f'\tS = {sample_rate}\tB = {bit_depth}\tDURATION = {duration}')
+    print(f'\tFILETYPE = {input_filename.split(".")[-1]}\tS = {sample_rate}\tDURATION = {duration}')
 
     with sf.SoundFile(
-            f'{output_directory}/{output_filename}',
+            file=f'{output_directory}/{output_filename}',
             mode='w+',
             samplerate=RECORDING_SAMPLE_RATE,
             channels=audio_data.ndim,
