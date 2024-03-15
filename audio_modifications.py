@@ -1,15 +1,20 @@
-from datetime import datetime
 import os
 from pathlib import Path
 from pydub import AudioSegment
-from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, MP3_BITRATES, RECORDED_SAMPLE_FILENAME_PREFIX
+
+from constants import MP3_BITRATES, TEST_BIT_DEPTHS, TEST_SAMPLE_RATES
 from collecting_data import simultaneous_record_playback
-import numpy as np
-import soundfile as sf
+from utils import get_audio_params_from_filepath, initialize_data_folders
 
 
 
-def crop_audio(input_file: str, start_ms: int, end_ms: int, output_directory: str, output_filename: str) -> AudioSegment:
+def crop_audio(
+        input_file: str,
+        start_ms: int,
+        end_ms: int,
+        output_directory: str,
+        output_filename: str
+    ) -> AudioSegment:
     """
     Crop the given audio file between the specified start and end
     times and saves it
@@ -61,7 +66,7 @@ def crop_audio(input_file: str, start_ms: int, end_ms: int, output_directory: st
     cropped_audio: AudioSegment = audio[start_ms:end_ms]
 
     ## TODO: MIGHT REMOVE THIS - SEE https://github.com/jiaaro/pydub/blob/master/API.markdown#audiosegmentapply_gain_stereo FOR MORE DETAILS
-    cropped_audio.set_channels(1)
+    cropped_audio = cropped_audio.set_channels(1)
     #############################
 
     os.makedirs(output_directory, exist_ok=True)
@@ -77,14 +82,13 @@ def modify_audio_sample(
         output_sample_rate: int = False,
         export_to_mp3: bool = False,
         output_bit_depth: int = False,
-    ):
+    ) -> None:
     if output_filename.find(".") != -1:
         assert output_filename.split(".")[-1] == output_file_format.split(".")[-1], f'expected output_filename to have same format as output_file_format, but "{output_filename.split(".")[-1]}" is not the same as "{output_file_format.split(".")[-1]}"'
 
     if output_sample_rate is not False:
-        audio_segment.set_frame_rate(output_sample_rate)
+        audio_segment = audio_segment.set_frame_rate(output_sample_rate)
 
-    # Save the cropped audio file
     if output_bit_depth is not False:
         audio_segment.export(out_f=output_filename, format=output_file_format.replace(".", ""), bitrate=str(int(output_bit_depth/8)))
 
@@ -102,9 +106,9 @@ def remaster_audio_file(
     sample_output_directory = f'{output_directory}/{audio_name}'
     os.makedirs(sample_output_directory, exist_ok=True)
 
-    for sample_rate in [1000, 2000, 4000, 8000, 16000, 44100, 48000, 82000, 96000, 192000]:
-        for bit_depth in [8, 16, 24]:
-            output_filename = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{audio_name}_S{sample_rate}_B{bit_depth}.wav'
+    for sample_rate in TEST_SAMPLE_RATES:
+        for bit_depth in TEST_BIT_DEPTHS:
+            output_filename = f'{audio_name}_S{sample_rate}_B{bit_depth}.wav'
             modify_audio_sample(
                 audio_segment=original_audio,
                 output_filename=f'{sample_output_directory}/{output_filename}',
@@ -113,22 +117,20 @@ def remaster_audio_file(
                 output_bit_depth=bit_depth,
             )
 
-    if make_mp3_files is True:
-        output_filename = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{audio_name}_BR.mp3'
-        modify_audio_sample(
-            audio_segment=original_audio,
-            output_filename=f'{sample_output_directory}/{output_filename}',
-            output_file_format='.mp3',
-            output_sample_rate=sample_rate,
-            output_bit_depth=bit_depth,
-        )
+        if make_mp3_files is True and sample_rate <= 48000:
+            output_filename = f'{audio_name}_S{sample_rate}_BR.mp3'
+            modify_audio_sample(
+                audio_segment=original_audio,
+                output_filename=f'{sample_output_directory}/{output_filename}',
+                output_file_format='.mp3',
+                output_sample_rate=sample_rate,
+                export_to_mp3=make_mp3_files,
+            )
 
 
 if __name__ == "__main__":
 
-    initial_time = datetime.now().strftime("%m-%d_%H-%M")
-    samples_output_directory = f'{DATA_DIRECTORY}/{initial_time}/{DATA_AUDIO_SAMPLES_DIRECTORY}'
-    recorded_output_directory = f'{DATA_DIRECTORY}/{initial_time}/{DATA_RECORDED_SAMPLES_DIRECTORY}'
+    samples_output_directory, recorded_output_directory = initialize_data_folders()
 
     audio_samples = {
         "hotel_california_intro": {
@@ -156,23 +158,22 @@ if __name__ == "__main__":
             audio_name=audio_name,
             original_audio=cropped_audio_sample,
             output_directory=samples_output_directory,
+            make_mp3_files=True,
         )
 
+    NUM_TRIALS = 1
 
-    audio_files = sorted(str(filename) for filename in Path(samples_output_directory).rglob('*.wav'))
-    for filename in audio_files:
-        file_params = str(filename).split("/")[-1].split("_")
-        filetype = file_params[2].split("/")[-1]
-        sample_rate = int(file_params[-2][1:])
-        bit_depth = int(file_params[-1].split(".")[0][1:])
-        output_file_directory = f'{recorded_output_directory}/{filename.split("/")[-2]}'
-        output_filename = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{filename.split("/")[-1]}'
-        os.makedirs(output_file_directory, exist_ok=True)
-        simultaneous_record_playback(
-            input_filename=filename,
-            sample_rate=sample_rate,
-            bit_depth=bit_depth,
-            output_directory=output_file_directory,
-            output_filename=output_filename,
-        )
-            # audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')
+    audio_files = sorted(str(filename) for filename in Path(samples_output_directory).rglob('*.[wav mp3]*'))
+
+    for trial_num in range(1, NUM_TRIALS + 1):
+        for filename in audio_files:
+            file_params = get_audio_params_from_filepath(filename)
+            output_file_directory = f'{recorded_output_directory}/{file_params["song_simple_name"]}'
+            output_filename = file_params["output_filename"]
+            os.makedirs(output_file_directory, exist_ok=True)
+            simultaneous_record_playback(
+                input_filename=filename,
+                output_directory=output_file_directory,
+                output_filename=output_filename,
+            )
+                # audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')
