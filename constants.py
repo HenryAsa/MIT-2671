@@ -34,3 +34,20 @@ RECORDING_SAMPLE_RATE = 96000
 
 RECORDED_SAMPLE_FILENAME_PREFIX = "result_"
 """All recorded files should start with this prefix"""
+
+TEST_SAMPLE_RATES = [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000,
+        24000,
+        32000,
+        44100,
+        48000,
+        82000,
+        96000,
+        192000
+    ]
+
+TEST_BIT_DEPTHS = [8, 16, 24]
