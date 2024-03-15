@@ -80,6 +80,7 @@ def plot_FFT_diff(audio_file: AudioFile, value_name: str, master_fft: tuple):
     # fft_diff = np.abs(master_fft_data)[:len(master_fft_data)//2] - np.abs(sample_fft_data)[:len(sample_fft_data)//2]
 
     # Plot the discrepancies
+    # plt.plot(sample_fft_data, label=value_name)
     plt.plot(master_fft_freq[:len(master_fft_data)//2], fft_diff, label=value_name)  # Plotting only the positive half of the frequencies
     plt.legend()
     # plt.grid()
@@ -93,6 +94,7 @@ def plot_FFT(audio_file: AudioFile, value_name: str, isMaster: bool = False):
     fft_data, fft_freq = get_fft(audio_file.file_path)
 
     # Plot the FFT
+    # plt.plot(fft_data, label=value_name)
     plt.plot(fft_freq[:len(fft_data)//2], np.abs(fft_data)[:len(fft_data)//2], label=value_name)  # Plotting only the positive half of the frequencies
     plt.legend()
 
@@ -211,11 +213,11 @@ if __name__ == "__main__":
             # ## LABELS FOR STANDARD FFT
             # plt.xlabel('Frequency (Hz)')
             # plt.ylabel('Amplitude')
-            # plt.title('FFT of the WAV file')
+            # plt.title(f'FFT of the Audio Files for Sampling Rate of {sample_rate} Hz')
             ## LABELS FOR FFT DIFF
             plt.xlabel('Frequency (Hz)')
             plt.ylabel('Discrepancy in Amplitude')
-            plt.title('FFT Discrepancies between Master and Sample')
+            plt.title(f'FFT Discrepancies between Master and Sample for Sampling Rate of {sample_rate} Hz')
 
             master_fft = get_fft(master.file_path)
 
@@ -226,14 +228,14 @@ if __name__ == "__main__":
                     continue
 
                 # plot_FFT(audio_file=audio_file, value_name=audio_file.get_by_sample_rate_name(), isMaster=False)
-                plot_FFT_diff(audio_file=audio_file, value_name=audio_file.file_path, master_fft=master_fft)
+                plot_FFT_diff(audio_file=audio_file, value_name=audio_file.get_by_sample_rate_name(), master_fft=master_fft)
 
             ## PLOT MASTER
-            # plot_FFT(master.file_path, "Master", isMaster=True)
-            plot_FFT_diff(master, "Master", master_fft)
+            # plot_FFT(audio_file=master, value_name="Master", isMaster=True)
+            plot_FFT_diff(audio_file=master, value_name="Master", master_fft=master_fft)
 
             plt.grid()
-            plt.xlim(0, 20000)
+            plt.xlim(0, 5000)
             plt.show()
 
             # plt.show()
