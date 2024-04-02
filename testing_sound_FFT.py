@@ -238,16 +238,4 @@ if __name__ == "__main__":
             plt.xlim(0, 5000)
             plt.show()
 
-            # plt.show()
-
-            # FFT_of_Wav_File(data, sample_rate, frequency, bit_depth)
-            # FFT_of_Wav_File(og_data, og_sample_rate, frequency, RECORDED_BIT_DEPTH, isMaster=True)
-            # plt.show()
-
-        # sample_rate_cd, data_cd = open_wav_file(filename_cd)
-        # plot_waveform(sample_rate_cd, data_cd, frequency, num_periods)
-
-        # sample_rate_bad, data_bad = open_wav_file(filename_bad)
-        # plot_waveform(sample_rate_bad, data_bad, frequency, num_periods)
-
         plt.show()

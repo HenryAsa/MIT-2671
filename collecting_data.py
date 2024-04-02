@@ -13,7 +13,6 @@ from signals import Signal, Sine
 from audio_generation import generate_audio_files
 
 
-
 q = queue.Queue()
 
 def callback_in(indata, frames, time, status):

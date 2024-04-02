@@ -145,6 +145,7 @@ if __name__ == "__main__":
         }
     }
 
+    #### MAKE AUDIO SAMPLES WITH DIFFERENT PARAMETERS ####
     for audio_name, audio_specs in audio_samples.items():
         cropped_audio_sample = crop_audio(
             input_file=audio_specs["filepath"],
@@ -160,6 +161,7 @@ if __name__ == "__main__":
             output_directory=samples_output_directory,
             make_mp3_files=True,
         )
+    ######################################################
 
     NUM_TRIALS = 1
 
@@ -176,5 +178,4 @@ if __name__ == "__main__":
                 output_directory=output_file_directory,
                 output_filename=output_filename,
             )
-                # audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')
-            
+            # audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')

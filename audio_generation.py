@@ -2,6 +2,9 @@ import numpy as np
 import wavio
 import os
 
+from constants import TEST_BIT_DEPTHS, TEST_SAMPLE_RATES
+
+
 def generate_single_frequency(
         frequency: float,
         sample_rate: int = 44100,
@@ -41,8 +44,8 @@ def generate_single_frequency(
 
 def generate_audio_files(
         frequencies: list[float] = [440, 1000, 2000, 4000, 8000, 12000, 16000],
-        sample_rates: list[int | float] = [1000, 2000, 4000, 8000, 16000, 44100, 48000, 82000, 96000, 192000],
-        bit_depths: list[int] = [8, 16, 24],
+        sample_rates: list[int | float] = TEST_SAMPLE_RATES,
+        bit_depths: list[int] = TEST_BIT_DEPTHS,
         sample_duration: float = 5,
         filename_prefix: str = "sine",
         output_directory: str = "audio_test_samples",
