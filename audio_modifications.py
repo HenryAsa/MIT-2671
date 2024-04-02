@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 from pydub import AudioSegment
+import numpy as np
+import soundfile as sf
 
 from constants import MP3_BITRATES, TEST_BIT_DEPTHS, TEST_SAMPLE_RATES
 from collecting_data import simultaneous_record_playback
@@ -90,7 +92,13 @@ def modify_audio_sample(
         audio_segment = audio_segment.set_frame_rate(output_sample_rate)
 
     if output_bit_depth is not False:
-        audio_segment.export(out_f=output_filename, format=output_file_format.replace(".", ""), bitrate=str(int(output_bit_depth/8)))
+        if output_bit_depth == 8:
+            audio_segment_bd = audio_segment.set_sample_width(int(output_bit_depth/8))
+            audio_segment_bd.export(out_f=output_filename, format=output_file_format.replace(".", ""))
+        else:
+            data = audio_segment._data
+            data_array = np.frombuffer(data, dtype=np.int32) # must use int32, this data is actually in 32bit fixed signed
+            sf.write(file=output_filename, data=data_array, samplerate=output_sample_rate, subtype=f'PCM_{int(output_bit_depth)}')
 
     if export_to_mp3 is not False:
         for mp3_bitrate in MP3_BITRATES:
@@ -171,7 +179,8 @@ if __name__ == "__main__":
         for filename in audio_files:
             file_params = get_audio_params_from_filepath(filename)
             output_file_directory = f'{recorded_output_directory}/{file_params["song_simple_name"]}'
-            output_filename = file_params["output_filename"]
+            output_filename = f'{file_params["output_filename"].split(".")[0]}.wav'
+            print(file_params["output_filename"])
             os.makedirs(output_file_directory, exist_ok=True)
             simultaneous_record_playback(
                 input_filename=filename,
