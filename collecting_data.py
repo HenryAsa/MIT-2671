@@ -1,6 +1,5 @@
 from datetime import datetime
 import time
-import matplotlib.pyplot as plt
 import os
 import sounddevice as sd
 from pathlib import Path
@@ -9,8 +8,7 @@ import soundfile as sf
 import sys
 
 from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, RECORDED_SAMPLE_FILENAME_PREFIX, RECORDING_SAMPLE_RATE
-from signals import Signal, Sine
-from audio_generation import generate_audio_files
+from audio_frequency_generation import generate_single_frequency_audio_files
 
 
 q = queue.Queue()
@@ -187,6 +185,6 @@ if __name__ == "__main__":
     initial_time = datetime.now().strftime("%m-%d_%H-%M")
     shared_output_directory = f'{DATA_DIRECTORY}/{initial_time}'
 
-    generate_audio_files(output_directory=f'{shared_output_directory}/{DATA_AUDIO_SAMPLES_DIRECTORY}')
+    generate_single_frequency_audio_files(output_directory=f'{shared_output_directory}/{DATA_AUDIO_SAMPLES_DIRECTORY}')
     read_simple_audio_samples(audio_samples_directory=f'{shared_output_directory}/{DATA_AUDIO_SAMPLES_DIRECTORY}', output_directory=f'{shared_output_directory}/{DATA_RECORDED_SAMPLES_DIRECTORY}')
     # read_simple_audio_samples(audio_samples_directory="music", output_directory=f'music')

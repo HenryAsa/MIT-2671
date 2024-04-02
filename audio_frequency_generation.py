@@ -42,7 +42,7 @@ def generate_single_frequency(
     wavio.write(f'{output_directory}/{filename}', x, sample_rate, sampwidth=int(bit_depth/8))
 
 
-def generate_audio_files(
+def generate_single_frequency_audio_files(
         frequencies: list[float] = [440, 1000, 2000, 4000, 8000, 12000, 16000],
         sample_rates: list[int | float] = TEST_SAMPLE_RATES,
         bit_depths: list[int] = TEST_BIT_DEPTHS,

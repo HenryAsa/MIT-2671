@@ -1,4 +1,4 @@
-from audio_generation import generate_single_frequency
+from audio_frequency_generation import generate_single_frequency
 
 
 
