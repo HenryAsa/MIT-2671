@@ -23,10 +23,15 @@ def get_audio_params_from_filepath(filepath: str) -> dict:
     print(filepath)
     file_params = str(filepath).split("/")[-1].split("_")
     output = {}
-    output["filetype"] = f'.{file_params[-1].split(".")[-1]}'
+
+    if file_params[0] == "result":
+        output["filetype"] = f'.{file_params[1]}'
+        output["output_filename"] = f'{filepath.split("/")[-1]}'
+    else:
+        output["filetype"] = f'.{file_params[-1].split(".")[-1]}'
+        output["output_filename"] = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{output["filetype"][1:]}_{filepath.split("/")[-1]}'
 
     output["song_simple_name"] = f'{filepath.split("/")[-2]}'
-    output["output_filename"] = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{output["filetype"][1:]}_{filepath.split("/")[-1]}'
     output["sample_rate"] = int(file_params[-2][1:])
 
     if output["filetype"] == '.mp3':
