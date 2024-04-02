@@ -1,5 +1,5 @@
 
-
+from pathlib import Path
 from datetime import datetime
 import os
 import numpy as np
@@ -38,6 +38,58 @@ def get_audio_params_from_filepath(filepath: str) -> dict:
     return output
 
 
+def get_files_from_folder(folder: str) -> list[str]:
+    """
+    Retrieve and sort file paths from a specified folder.
+
+    This function lists all files in the given folder and returns
+    their paths sorted alphabetically. Each file path is constructed
+    by concatenating the folder path with the filename.
+
+    Parameters
+    ----------
+    folder : str
+        The path to the folder from which to retrieve file paths.
+
+    Returns
+    -------
+    list[str]
+        A list of sorted file paths present in the specified folder.
+
+    Examples
+    --------
+    >>> get_files_from_folder('/my/folder')
+    ['/my/folder/file1.txt', '/my/folder/file2.txt']
+    """
+    return sorted([f'{folder}/{filename}' for filename in os.listdir(folder)])
+
+
+def get_filetype_from_folder(folder: str, filetype: str) -> list[str]:
+    """
+    Retrieve a sorted list of file paths in a specified folder.
+
+    This function lists all files and directories in the given
+    folder, combines them with the folder path to create full paths,
+    and returns these paths in alphabetical order.  It does not
+    recurse into subdirectories.
+
+    Parameters
+    ----------
+    folder : str
+        The path to the folder from which to list file paths.
+
+    Returns
+    -------
+    list[str]
+        A sorted list of file paths (including directories) in the
+        specified folder.
+
+    Examples
+    --------
+    >>> get_files_from_folder('/path/to/folder')
+    ['/path/to/folder/dir1', '/path/to/folder/file1.txt']
+    """
+    return sorted(str(filepath) for filepath in Path(folder).rglob(f'*.{filetype[1:] if filetype.startswith(".") else filetype}'))
 
 
 def map_to_discrete(

@@ -1,4 +1,3 @@
-from pathlib import Path
 from random import sample
 from typing import Type
 import matplotlib.pyplot as plt
@@ -6,8 +5,8 @@ from scipy.io import wavfile
 from scipy.fftpack import fft
 import numpy as np
 import os
-# from pylab import *
-from utils import get_audio_params_from_filepath, map_to_discrete
+
+from utils import get_audio_params_from_filepath, get_filetype_from_folder, map_to_discrete
 from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, RECORDED_BIT_DEPTH, RECORDED_SAMPLE_FILENAME_PREFIX
 
 
@@ -165,14 +164,6 @@ def plot_waveform(
     plt.xlabel("Time [s]")
     plt.ylabel("Amplitude")
     # plt.show()
-
-
-def get_files_from_folder(folder: str) -> list[str]:
-    return sorted([f'{folder}/{filename}' for filename in os.listdir(folder)])
-
-
-def get_filetype_from_folder(folder: str, filetype: str) -> list[str]:
-    return sorted(str(filepath) for filepath in Path(folder).rglob(f'*.{filetype[1:] if filetype.startswith(".") else filetype}'))
 
 
 if __name__ == "__main__":
