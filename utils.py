@@ -42,6 +42,37 @@ def get_audio_params_from_filepath(filepath: str) -> dict:
     return output
 
 
+def remove_duplicates_from_list(lst: list) -> list:
+    """
+    Remove duplicates from a list, preserving the original order.
+
+    Parameters
+    ----------
+    lst : list
+        The list from which to remove duplicate elements.
+
+    Returns
+    -------
+    list
+        A list containing the unique elements of the original list, in
+        the order they first appeared.
+
+    Examples
+    --------
+    >>> remove_duplicates([1, 2, 2, 3, 4, 4, 5])
+    [1, 2, 3, 4, 5]
+
+    """
+    seen = set()
+    result = []
+    for item in lst:
+        if item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+
+
+
 def get_files_from_folder(folder: str) -> list[str]:
     """
     Retrieve and sort file paths from a specified folder.

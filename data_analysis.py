@@ -1,7 +1,10 @@
+import librosa
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 from scipy.io import wavfile
+from scipy.spatial.distance import euclidean
+from pydub import AudioSegment
 
 from audio_file_rep import AudioFile
 from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY
@@ -180,8 +183,8 @@ if __name__ == "__main__":
 
     for folder, folder_partitions in audio_recording_data.items():
     
-        master_sample_path = folder_partitions["master_filepath"]
-        by_sample_rate = folder_partitions["by_sample_rate"]
+        master_sample_path: str = folder_partitions["master_filepath"]
+        by_sample_rate: dict[int, list[AudioFile]] = folder_partitions["by_sample_rate"]
 
         for sample_rate, files in by_sample_rate.items():
             sample_paths = sorted(files)
