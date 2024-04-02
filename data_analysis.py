@@ -1,8 +1,7 @@
-import librosa
-import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from scipy.io import wavfile
 
 from audio_file_rep import AudioFile
 from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY
@@ -44,22 +43,110 @@ def load_data_by_paritions(
     return output
 
 
+def compare_audio_samples(
+        master_sample_path: AudioFile,
+        sample_paths: list[AudioFile]
+    ) -> None:
+    # Load the master sample
+    sr_master, master_sample = wavfile.read(master_sample_path.file_path)
+
+    # Convert to float for consistency in calculation, especially if the files have different bit depths
+    master_sample = master_sample.astype(np.float32)
+
+    # Initialize a plot
+    plt.figure(figsize=(10, 6))
+    times_master = np.arange(master_sample.size) / sr_master
+    plt.plot(times_master, master_sample, label='Master Sample', alpha=0.5)
+
+    mse_values = []
+
+    for audio_file in sample_paths:
+        # Load the comparison sample
+        sr_sample, sample = wavfile.read(audio_file.file_path)
+
+        # Ensure the sampling rates match, resample if necessary (simple approach)
+        if sr_sample != sr_master:
+            raise ValueError(f"Sample rate mismatch: Master({sr_master}) vs Sample({sr_sample}) in {audio_file}")
+
+        # Convert to float to match master sample
+        sample = sample.astype(np.float32)
+
+        # Ensure the samples have the same length
+        min_len = min(master_sample.size, sample.size)
+        master_sample_trimmed = master_sample[:min_len]
+        sample_trimmed = sample[:min_len]
+
+        # Calculate MSE
+        mse = np.mean((master_sample_trimmed - sample_trimmed) ** 2)
+        mse_values.append(mse)
+
+        # Plot comparison sample
+        times_sample = np.arange(sample_trimmed.size) / sr_sample
+        plt.plot(times_sample, sample_trimmed, label=f'{audio_file.get_by_sample_rate_name()}', alpha=0.4)
+
+    # Finalize plot
+    plt.title('Comparison of Audio Samples')
+    plt.legend()
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude')
+    plt.show()
+
+    # Print MSE values
+    for path, mse in zip(sample_paths, mse_values):
+        print(f'MSE for {path}: {mse}')
 
 
-if __name__ == "__main__":
+def plot_error_from_master(
+        master_sample_path: AudioFile,
+        sample_paths: list[AudioFile],
+    ) -> None:
+    # Load the master sample
+    sr_master, master_sample = wavfile.read(master_sample_path.file_path)
 
-    time_folder = '04-02_00-44'
-    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder)
+    # Ensure master sample is in float format for precision
+    master_sample = master_sample.astype(np.float32)
 
-    for folder, folder_partitions in audio_recording_data.items():
-    
-        master_sample_path = folder_partitions["master_filepath"]
-        by_sample_rate = folder_partitions["by_sample_rate"]
+    mse_values = []
 
-        for sample_rate, files in by_sample_rate.items():
-            sample_paths = sorted(files)
+    # Set up the figure for plotting
+    plt.figure(figsize=(14, len(sample_paths) * 2))
 
-            compare_audio_samples(AudioFile(file_path=master_sample_path), sample_paths)
+    for i, audio_file in enumerate(sample_paths, 1):
+        # Load the comparison sample
+        sr_sample, sample = wavfile.read(audio_file.file_path)
+        sample = sample.astype(np.float32)
+
+        if sr_sample != sr_master:
+            raise ValueError(f"Sample rate mismatch: Master({sr_master}) vs Sample({sr_sample}) in {audio_file.file_path}")
+
+        # Ensure the samples have the same length
+        min_len = min(master_sample.size, sample.size)
+        master_sample_trimmed = master_sample[:min_len]
+        sample_trimmed = sample[:min_len]
+
+        # Calculate the error (deviation) from the master sample
+        error_signal = sample_trimmed - master_sample_trimmed
+
+        # Calculate MSE for the error signal
+        mse = np.mean(error_signal ** 2)
+        mse_values.append(mse)
+
+        # Plot the error signal
+        plt.subplot(len(sample_paths), 1, i)
+        times = np.arange(min_len) / sr_master
+        plt.plot(times, error_signal, label=f'{audio_file.get_by_sample_rate_name()}')
+        plt.title(f'Error from Master: {master_sample_path.file_path}')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Error Amplitude')
+        plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+    # Print MSE values
+    for path, mse in zip(sample_paths, mse_values):
+        print(f'MSE for {path}: {mse}')
+
 
 
     # for folder in os.listdir(recorded_samples_folder_path):
@@ -84,39 +171,23 @@ if __name__ == "__main__":
     #             by_file_type[current_file.file_type] = set()
     #         by_file_type[current_file.file_type].add(current_file)
 
-    #         if current_file.sample_rate not in by_sample_rate:
-    #             by_sample_rate[current_file.sample_rate] = set()
-    #         by_sample_rate[current_file.sample_rate].add(current_file)
 
-    #     for sample_rate, files in by_sample_rate.items():
-    #         plt.figure(figsize=[15,5])
-    #         # ## LABELS FOR STANDARD FFT
-    #         # plt.xlabel('Frequency (Hz)')
-    #         # plt.ylabel('Amplitude')
-    #         # plt.title(f'FFT of the Audio Files for Sampling Rate of {sample_rate} Hz')
-    #         ## LABELS FOR FFT DIFF
-    #         plt.xlabel('Frequency (Hz)')
-    #         plt.ylabel('Discrepancy in Amplitude')
-    #         plt.title(f'FFT Discrepancies between Master and Sample for Sampling Rate of {sample_rate} Hz')
 
-    #         master_fft = get_fft(master.file_path)
+if __name__ == "__main__":
 
-    #         for audio_file in files:
-    #             filename = audio_file.file_path
-                
-    #             if filename == master.file_path:
-    #                 continue
+    time_folder = '04-02_00-44'
+    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder)
 
-    #             # plot_FFT(audio_file=audio_file, value_name=audio_file.get_by_sample_rate_name(), isMaster=False)
-    #             plot_FFT_diff(audio_file=audio_file, value_name=audio_file.get_by_sample_rate_name(), master_fft=master_fft)
+    for folder, folder_partitions in audio_recording_data.items():
+    
+        master_sample_path = folder_partitions["master_filepath"]
+        by_sample_rate = folder_partitions["by_sample_rate"]
 
-    #         ## PLOT MASTER
-    #         # plot_FFT(audio_file=master, value_name="Master", isMaster=True)
-    #         plot_FFT_diff(audio_file=master, value_name="Master", master_fft=master_fft)
+        for sample_rate, files in by_sample_rate.items():
+            sample_paths = sorted(files)
 
-    #         plt.grid()
-    #         plt.xlim(0, 5000)
-    #         plt.show()
+    #         plot_error_from_master(AudioFile(file_path=master_sample_path), sample_paths)
+    #         # compare_audio_samples(AudioFile(file_path=master_sample_path), sample_paths)
 
     #     plt.show()
 
