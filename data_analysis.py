@@ -9,33 +9,26 @@ from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDE
 from utils import get_audio_params_from_filepath, get_filetype_from_folder
 
 
-def compare_audio_samples(
-        master_sample_path: str,
-        sample_paths: list[str]
-    ) -> None:
-    pass
+def load_data_by_paritions(
+        time_folder_name: str,
+    ) -> dict[str, dict]:
 
+    output: dict[str, dict] = {}
 
-if __name__ == "__main__":
-
-    time_folder = '04-02_00-44'
-
-    recorded_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder}/{DATA_RECORDED_SAMPLES_DIRECTORY}'
-    audio_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder}/{DATA_AUDIO_SAMPLES_DIRECTORY}'
+    recorded_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_RECORDED_SAMPLES_DIRECTORY}'
+    audio_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_AUDIO_SAMPLES_DIRECTORY}'
 
     for folder in os.listdir(recorded_samples_folder_path):
         recorded_filepaths = set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{folder}', '.wav')).union(set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{folder}', '.mp3')))
-        audio_samples_filepaths = set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.wav')).union(set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.mp3')))
+        # audio_samples_filepaths = set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.wav')).union(set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.mp3')))
 
         by_sample_rate: dict[int, set[AudioFile]] = {}
         by_file_type: dict[str, set[AudioFile]] = {}
-        # masters: dict[str, AudioFile] = {}
 
         master_sample_path = next((audio_file for audio_file in recorded_filepaths if audio_file.endswith("_S192000_B24.wav")))
         recorded_filepaths.discard(master_sample_path)
 
         for filename in sorted(recorded_filepaths):
-            print(filename)
             current_file = AudioFile(file_path=filename)
 
             if current_file.file_type not in by_file_type:
@@ -46,10 +39,27 @@ if __name__ == "__main__":
                 by_sample_rate[current_file.sample_rate] = set()
             by_sample_rate[current_file.sample_rate].add(current_file)
 
+        output[folder] = {"master_filepath": master_sample_path, "by_sample_rate": by_sample_rate, "by_file_type": by_file_type}
+
+    return output
+
+
+
+
+if __name__ == "__main__":
+
+    time_folder = '04-02_00-44'
+    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder)
+
+    for folder, folder_partitions in audio_recording_data.items():
+    
+        master_sample_path = folder_partitions["master_filepath"]
+        by_sample_rate = folder_partitions["by_sample_rate"]
 
         for sample_rate, files in by_sample_rate.items():
             sample_paths = sorted(files)
-            compare_audio_samples(master_sample_path, sample_paths)
+
+            compare_audio_samples(AudioFile(file_path=master_sample_path), sample_paths)
 
 
     # for folder in os.listdir(recorded_samples_folder_path):
