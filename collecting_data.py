@@ -167,7 +167,7 @@ def simultaneous_record_playback(
             mode='w+',
             samplerate=RECORDING_SAMPLE_RATE,
             channels=audio_data.ndim,
-            subtype='PCM_32',
+            subtype='PCM_24',
             format='WAV'
         ) as file:
         with sd.InputStream(
