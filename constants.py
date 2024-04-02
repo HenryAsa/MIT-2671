@@ -49,5 +49,7 @@ TEST_SAMPLE_RATES = [
         96000,
         192000
     ]
+"""Sample Rates (in Hz) of the audio test samples"""
 
 TEST_BIT_DEPTHS = [8, 16, 24]
+"""Bit depths to use for testing (in bits)"""

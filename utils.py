@@ -40,7 +40,12 @@ def get_audio_params_from_filepath(filepath: str) -> dict:
 
 
 
-def map_to_discrete(array: np.ndarray, array_bounds: list[int], n_steps: int, n_bounds: list[int]) -> np.ndarray:
+def map_to_discrete(
+        array: np.ndarray,
+        array_bounds: list[int],
+        n_steps: int,
+        n_bounds: list[int],
+    ) -> np.ndarray:
     """
     Map values in the input array to discrete values within specified
     bounds
