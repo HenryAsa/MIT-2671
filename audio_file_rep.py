@@ -98,7 +98,7 @@ class AudioFile:
             return f'Sample Rate = {self.sample_rate} Hz, BitRate = {self.bitrate} kb/s'
         else:
             return f'Sample Rate = {self.sample_rate} Hz, Bit Depth = {self.bit_depth}'
-    
+
     def __lt__(self, other):
         """
         Defines the less-than comparison between two `AudioFile`

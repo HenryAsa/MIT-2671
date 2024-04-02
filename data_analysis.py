@@ -213,18 +213,18 @@ def audio_similarity(file1, file2, sr=22050):
     # This can help ensure the comparison focuses more on the timbral texture rather than volume differences
     y1 = librosa.util.normalize(y1)
     y2 = librosa.util.normalize(y2)
-    
+
     # Compute MFCCs from the normalized audio signals
     mfcc1 = librosa.feature.mfcc(y=y1, sr=sr)
     mfcc2 = librosa.feature.mfcc(y=y2, sr=sr)
-    
+
     # Average the MFCCs across time
     avg_mfcc1 = np.mean(mfcc1, axis=1)
     avg_mfcc2 = np.mean(mfcc2, axis=1)
-    
+
     # Calculate the Euclidean distance between the average MFCCs
     distance = euclidean(avg_mfcc1, avg_mfcc2)
-    
+
     return distance
 
 
@@ -242,11 +242,11 @@ def plot_mfcc_error(file1, file2, sr=22050):
 
     y1 = librosa.util.normalize(y1)
     y2 = librosa.util.normalize(y2)
-    
+
     # Compute MFCCs from the normalized audio signals
     mfcc1 = librosa.feature.mfcc(y=y1, sr=sr)
     mfcc2 = librosa.feature.mfcc(y=y2, sr=sr)
-    
+
     # Assuming both MFCC matrices have the same shape; if not, additional handling is needed
     error = np.abs(mfcc1 - mfcc2)  # Absolute error between MFCCs
 
@@ -319,18 +319,18 @@ def compare_files_to_master(master_file: AudioFile, file_group: list[AudioFile],
 
     # Initialize a plot
     plt.figure(figsize=(10, len(file_group)))
-    plt.suptitle(f'Error Between {master_file} and Sample')
+    plt.suptitle(f'{master_file.song_simple_name} - Error Between Samples at {audio_file.sample_rate} Hz and a {master_file.bit_depth}-bit, {master_file.sample_rate} Hz Master')
 
     for i, (audio_file, error) in enumerate(zip(file_group, errors), start=1):
         plt.subplot(round(len(file_group) / 2), 2, i)
         plt.imshow(error, aspect='auto', origin='lower', cmap='hot', interpolation='nearest', vmin=min_error, vmax=max_error)
-        plt.title(f'{audio_file}')
+        plt.title(f'{audio_file.get_by_sample_rate_name()}')
         plt.xlabel('Time')
         plt.ylabel('MFCC Coefficients')
         plt.colorbar(label='Absolute Error')
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":
@@ -361,11 +361,12 @@ if __name__ == "__main__":
 
             # sample_paths.append(AudioFile(master_sample_path))
             compare_files_to_master(AudioFile(master_sample_path), sample_paths)
-
+            plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
+            plt.close()
 
             for file in sample_paths:
                 distance = audio_similarity(master_sample_path, file.file_path)
-                print(distance)
+                # print(distance)
                 dataset.loc[file.sample_rate, file.get_by_sample_rate_name()] = distance
                 # plot_mfcc_error(master_sample_path, file.file_path)
 
@@ -379,4 +380,6 @@ if __name__ == "__main__":
         plt.ylabel('Euclidean Distance of the MFCC')
         plt.legend()
         plt.show()
+        plt.savefig(f'plots/{time_folder}/{folder}_distance.svg')
+        plt.close()
         ##########################
