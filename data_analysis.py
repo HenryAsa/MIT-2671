@@ -15,14 +15,62 @@ from utils import get_audio_params_from_filepath, get_filetype_from_folder, remo
 def load_data_by_paritions(
         time_folder_name: str,
     ) -> dict[str, dict[str, list[AudioFile]]]:
+    """
+    Load and organize audio data by partitions from specified time
+    folders.
 
+    This function scans a designated directory structure for audio
+    files, organizing them into a structured dictionary based on the
+    song folder, sample rate, and file type. It identifies a master
+    sample for each song and separates files by their sample rate and
+    file type, facilitating easier access to specific types of audio
+    data for processing or analysis.
+
+    Parameters
+    ----------
+    time_folder_name : str
+        The name of the folder within the data directory from which to
+        load audio samples. This folder is expected to contain
+        subfolders for recorded samples and possibly for audio
+        samples, each containing audio files in '.wav' or '.mp3'
+        format.
+
+    Returns
+    -------
+    dict[str, dict[str, list[AudioFile]]]
+        A dictionary where each key is the name of a song folder, and
+        the value is another dictionary with keys 'master_filepath',
+        'by_sample_rate', and 'by_file_type'. 'master_filepath' is the
+        path to the master audio file for that song. 'by_sample_rate'
+        and 'by_file_type' are dictionaries that organize `AudioFile`
+        objects by their sample rates and file types, respectively.
+
+    Examples
+    --------
+    >>> load_data_by_partitions('2023-March')
+    {'song1': {'master_filepath': 'path/to/song1_master_S192000_B24.wav',
+               'by_sample_rate': {192000: [<AudioFile object>, ...]},
+               'by_file_type': {'wav': [<AudioFile object>, ...]}},
+     ...}
+
+    Notes
+    -----
+    - The `AudioFile` class is assumed to have attributes `file_path`,
+      `file_type`, and `sample_rate`, and to be initialized with a
+      file path.
+    - This function does not return audio samples from the
+      'audio_samples_folder_path' due to the commented-out line, which
+      may be an oversight or intentional.
+    - The master sample file for each song is identified by a specific
+      naming convention: a file ending with "_S192000_B24.wav".
+    """
     output: dict[str, dict] = {}
 
     recorded_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_RECORDED_SAMPLES_DIRECTORY}'
     audio_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_AUDIO_SAMPLES_DIRECTORY}'
 
-    for folder in os.listdir(recorded_samples_folder_path):
-        recorded_filepaths = set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{folder}', '.wav')).union(set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{folder}', '.mp3')))
+    for song_folder in os.listdir(recorded_samples_folder_path):
+        recorded_filepaths = set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.mp3')))
         # audio_samples_filepaths = set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.wav')).union(set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.mp3')))
 
         by_sample_rate: dict[int, set[AudioFile]] = {}
@@ -42,19 +90,65 @@ def load_data_by_paritions(
                 by_sample_rate[current_file.sample_rate] = set()
             by_sample_rate[current_file.sample_rate].add(current_file)
 
-        output[folder] = {"master_filepath": master_sample_path, "by_sample_rate": by_sample_rate, "by_file_type": by_file_type}
+        output[song_folder] = {
+            "master_filepath": master_sample_path,
+            "by_sample_rate":  by_sample_rate,
+            "by_file_type":    by_file_type,
+        }
 
     return output
 
 
-def compare_audio_samples(
+def compare_audio_samples_mse(
         master_sample_path: AudioFile,
-        sample_paths: list[AudioFile]
+        audio_samples: list[AudioFile]
     ) -> None:
+    """
+    Compare the master audio sample with a list of audio samples using
+    the Mean Squared Error (MSE) metric and visualize the comparison.
+
+    This function loads the master audio sample and the list of audio
+    samples provided, ensuring they are all at the same sample rate.
+    It then calculates the MSE between the master sample and each of
+    the audio samples, plots these samples for visual comparison, and
+    prints the MSE values.
+
+    Parameters
+    ----------
+    master_sample_path : AudioFile
+        The audio file object representing the master sample.
+    audio_samples : list[AudioFile]
+        A list of audio file objects to compare against the master
+        sample.
+
+    Raises
+    ------
+    ValueError
+        If there is a sample rate mismatch between the master sample
+        and any of the audio samples.
+
+    Notes
+    -----
+    - The function assumes that all audio files are in a format that
+      scipy's wavfile module can read.
+    - Audio samples with different lengths or bit depths are handled
+      by converting to float32 and trimming to the minimum length.
+    - This function is designed for visual and quantitative comparison
+      but does not return any values.
+
+    Examples
+    --------
+    >>> master_sample = AudioFile('master_sample.wav')
+    >>> samples = [AudioFile('sample1.wav'), AudioFile('sample2.wav')]
+    >>> compare_audio_samples_mse(master_sample, samples)
+    MSE for sample1.wav: 0.002
+    MSE for sample2.wav: 0.003
+    """
     # Load the master sample
     sr_master, master_sample = wavfile.read(master_sample_path.file_path)
 
-    # Convert to float for consistency in calculation, especially if the files have different bit depths
+    # Convert to float for consistency in calculation, especially if
+    # the files have different bit depths
     master_sample = master_sample.astype(np.float32)
 
     # Initialize a plot
@@ -64,7 +158,7 @@ def compare_audio_samples(
 
     mse_values = []
 
-    for audio_file in sample_paths:
+    for audio_file in audio_samples:
         # Load the comparison sample
         sr_sample, sample = wavfile.read(audio_file.file_path)
 
@@ -86,7 +180,12 @@ def compare_audio_samples(
 
         # Plot comparison sample
         times_sample = np.arange(sample_trimmed.size) / sr_sample
-        plt.plot(times_sample, sample_trimmed, label=f'{audio_file.get_by_sample_rate_name()}', alpha=0.4)
+        plt.plot(
+            times_sample,
+            sample_trimmed,
+            label=f'{audio_file.get_by_sample_rate_name()}',
+            alpha=0.4
+        )
 
     # Finalize plot
     plt.title('Comparison of Audio Samples')
@@ -96,14 +195,48 @@ def compare_audio_samples(
     plt.show()
 
     # Print MSE values
-    for path, mse in zip(sample_paths, mse_values):
+    for path, mse in zip(audio_samples, mse_values):
         print(f'MSE for {path}: {mse}')
 
 
 def plot_error_from_master(
         master_sample_path: AudioFile,
-        sample_paths: list[AudioFile],
+        audio_samples: list[AudioFile],
     ) -> None:
+    """
+    Plots the error signal derived from comparing a master audio
+    sample with a list of other audio samples.
+
+    This function first loads the master audio sample and each sample
+    from the given list, converting them to float32 for precision. It
+    then calculates the error signal for each sample as the difference
+    between the master sample and the sample. The mean squared error
+    (MSE) of the error signal is calculated and plotted for each
+    sample. Finally, the MSE values are printed.
+
+    Parameters
+    ----------
+    master_sample_path : AudioFile
+        The path to the master audio sample file.
+    audio_samples : list[AudioFile]
+        A list of AudioFile objects representing the audio samples to
+        be compared against the master sample.
+
+    Raises
+    ------
+    ValueError
+        If there is a sample rate mismatch between the master sample
+        and any of the audio samples.
+
+    Examples
+    --------
+    >>> master_path = AudioFile("master_sample.wav")
+    >>> samples = [AudioFile("sample1.wav"), AudioFile("sample2.wav")]
+    >>> plot_error_from_master(master_path, samples)
+    This will plot the error signals and print the MSE values for the
+    comparison of `master_sample.wav` with `sample1.wav` and
+    `sample2.wav`.
+    """
     # Load the master sample
     sr_master, master_sample = wavfile.read(master_sample_path.file_path)
 
@@ -113,9 +246,9 @@ def plot_error_from_master(
     mse_values = []
 
     # Set up the figure for plotting
-    plt.figure(figsize=(14, len(sample_paths) * 2))
+    plt.figure(figsize=(14, len(audio_samples) * 2))
 
-    for i, audio_file in enumerate(sample_paths, 1):
+    for i, audio_file in enumerate(audio_samples, 1):
         # Load the comparison sample
         sr_sample, sample = wavfile.read(audio_file.file_path)
         sample = sample.astype(np.float32)
@@ -136,7 +269,7 @@ def plot_error_from_master(
         mse_values.append(mse)
 
         # Plot the error signal
-        plt.subplot(len(sample_paths), 1, i)
+        plt.subplot(len(audio_samples), 1, i)
         times = np.arange(min_len) / sr_master
         plt.plot(times, error_signal, label=f'{audio_file.get_by_sample_rate_name()}')
         plt.title(f'Error from Master: {master_sample_path.file_path}')
@@ -148,27 +281,73 @@ def plot_error_from_master(
     plt.show()
 
     # Print MSE values
-    for path, mse in zip(sample_paths, mse_values):
+    for path, mse in zip(audio_samples, mse_values):
         print(f'MSE for {path}: {mse}')
 
 
-def load_audio_for_comparison(master_path: AudioFile, sample_paths: list[AudioFile]):
+def load_audio_for_comparison(
+        master_audio: AudioFile,
+        audio_samples: list[AudioFile],
+    ) -> tuple[list[float], list[float]]:
+    """
+    Load audio samples and compare them to a master audio file using
+    Mean Squared Error (MSE).
+
+    This function loads a master audio file and a list of audio
+    samples, converts them to a consistent format, and calculates the
+    Mean Squared Error (MSE) between each sample and the master audio
+    file. It supports both WAV and MP3 formats. Samples are converted
+    to float32 for consistency, and sample rates between the master
+    and each sample must match. Currently, the function does not
+    implement sample rate conversion and will raise an exception if a
+    mismatch is detected.
+
+    Parameters
+    ----------
+    master_audio : AudioFile
+        The master audio file against which others are compared. Must
+        have a `file_path` attribute.
+    audio_samples : list[AudioFile]
+        A list of audio files to compare against the master. Each must
+        have a `file_path` attribute.
+
+    Returns
+    -------
+    list
+        A list of numpy arrays representing the error signals between
+        the master audio sample and each of the audio samples.
+    list
+        A list of float values representing the mean squared error
+        between the master audio sample and each of the audio samples.
+
+    Raises
+    ------
+    ValueError
+        If an audio file format is unsupported.
+    NotImplementedError
+        If sample rate conversion is required but not implemented.
+
+    Examples
+    --------
+    >>> master = AudioFile('path/to/master.wav')
+    >>> samples = [AudioFile('path/to/sample1.wav'), AudioFile('path/to/sample2.mp3')]
+    >>> errors, mse_values = load_audio_for_comparison(master, samples)
+    """
     # Load and convert the master sample to a consistent format
-    sr_master, master_sample = wavfile.read(master_path.file_path)
+    sr_master, master_sample = wavfile.read(master_audio.file_path)
     master_sample = master_sample.astype(np.float32)
 
     errors = []
     mse_values = []
 
-    print(sample_paths)
-    for audio_file in sample_paths:
+    for audio_file in audio_samples:
         path = audio_file.file_path
         # Determine the file type and load accordingly
         if path.endswith('.wav'):
             sr_sample, sample = wavfile.read(path)
             sample = sample.astype(np.float32)
         elif path.endswith('.mp3'):
-            audio = AudioSegment.from_mp3(path)
+            audio: AudioSegment = AudioSegment.from_mp3(path)
             # Convert to WAV-like data for consistency
             sample = np.array(audio.get_array_of_samples(), dtype=np.float32)
             sr_sample = audio.frame_rate
@@ -193,17 +372,44 @@ def load_audio_for_comparison(master_path: AudioFile, sample_paths: list[AudioFi
     return errors, mse_values
 
 
-def audio_similarity(file1, file2, sr=22050):
+def audio_similarity_euclidean_mfcc(
+        file1: str,
+        file2: str,
+        sr: int = 22050
+    ) -> float:
     """
-    Compares two audio files (of potentially different codecs, sample rates, and bit depths)
-    by computing the distance between their MFCCs.
+    Compare two audio files for similarity.
 
-    Parameters:
-    - file1, file2: Paths to the audio files to compare.
-    - sr: Target sample rate for both audio files.
+    This function computes the distance between the Mel-Frequency
+    Cepstral Coefficients (MFCCs) of two audio files, which may vary
+    in codec, sample rates, and bit depths.  A lower distance metric
+    indicates greater similarity.
 
-    Returns:
-    - Distance metric indicating similarity between the audio files.
+    Parameters
+    ----------
+    file1 : str
+        Path to the first audio file.
+    file2 : str
+        Path to the second audio file.
+    sr : int, optional
+        Target sample rate for audio files. Default is 22050.
+
+    Returns
+    -------
+    float
+        Distance metric indicating the similarity between the audio
+        files.
+
+    Notes
+    -----
+    Both audio files are loaded and normalized to the same loudness
+    before computing MFCCs. This ensures that the comparison focuses
+    more on timbral textures rather than volume differences.
+
+    Examples
+    --------
+    >>> audio_similarity("path/to/file1.wav", "path/to/file2.mp3")
+    0.5
     """
     # Load and normalize audio files
     y1, _ = librosa.load(file1, sr=sr)
@@ -228,13 +434,54 @@ def audio_similarity(file1, file2, sr=22050):
     return distance
 
 
-def plot_mfcc_error(file1, file2, sr=22050):
+def plot_mfcc_error(
+        file1: str,
+        file2: str,
+        sr: int=22050,
+    ):
     """
-    Plots the error of MFCCs over time between two audio files.
+    Plots the error of Mel Frequency Cepstral Coefficients (MFCCs)
+    over time between two audio files.
+    
+    This function loads both files, normalizes their audio signals,
+    computes the MFCCs for each, and then calculates and plots the
+    absolute error between these MFCCs over time.
 
-    Parameters:
-    - file1, file2: Paths to the audio files to compare.
-    - sr: Target sample rate for both audio files.
+    Parameters
+    ----------
+    file1 : str
+        Path to the first audio file.
+    file2 : str
+        Path to the second audio file.
+    sr : int, optional
+        Target sample rate for both audio files. Default is 22050.
+
+    Returns
+    -------
+    None
+        This function does not return a value. It generates and
+        displays a plot of the MFCC error over time.
+
+    Examples
+    --------
+    >>> plot_mfcc_error("audio1.wav", "audio2.wav", sr=22050)
+        This will load the audio files `audio1.wav` and `audio2.wav`,
+        compute their MFCCs at a sample rate of 22050 Hz, calculate
+        the absolute error between these MFCCs, and plot the result.
+
+    Notes
+    -----
+    - This function requires `librosa` for audio processing and
+      `matplotlib.pyplot` for plotting.
+    - The audio files must be accessible at the specified paths and
+      must be in a format readable by `librosa.load`.
+    - It is assumed that the MFCCs of both audio files have the same
+      shape. If this is not the case, additional handling will be
+      required.
+    - The plot generated by this function provides insights into how
+      similar or different the audio content of the two files is in
+      terms of MFCCs, which can be useful in applications such as
+      audio analysis and comparison.
     """
     # Load and normalize audio files
     y1, _ = librosa.load(file1, sr=sr)
@@ -261,16 +508,46 @@ def plot_mfcc_error(file1, file2, sr=22050):
     plt.show()
 
 
-def pad_mfcc(mfcc, target_shape):
+def pad_mfcc(
+        mfcc: np.ndarray,
+        target_shape: tuple[int],
+    ):
     """
-    Pads the MFCC array to the target shape with zeros.
-    
-    Parameters:
-    - mfcc: The MFCC array to pad.
-    - target_shape: The target shape tuple (n_mfcc, time_frames).
-    
-    Returns:
-    - Padded MFCC array.
+    Pads the MFCC (Mel Frequency Cepstral Coefficients) array to
+    match a specified shape by adding zeros if necessary.
+
+    Parameters
+    ----------
+    mfcc : ndarray
+        The MFCC array to pad, typically with a shape of 
+        (n_mfcc, time_frames), where `n_mfcc` is the number of
+        MFCC features and `time_frames` is the number of time frames.
+    target_shape : tuple of int
+        The target shape as a tuple, (n_mfcc, target_time_frames), 
+        where `target_time_frames` is the desired number of time
+        frames after padding.
+
+    Returns
+    -------
+    ndarray
+        The padded MFCC array with the shape specified by
+        `target_shape`. If the original array already meets or exceeds
+        the target in the second dimension (time_frames), it is
+        returned unchanged.
+
+    Examples
+    --------
+    >>> mfcc = np.array([[1, 2, 3], [4, 5, 6]])
+    >>> target_shape = (2, 5)
+    >>> pad_mfcc(mfcc, target_shape)
+    array([[1, 2, 3, 0, 0],
+           [4, 5, 6, 0, 0]])
+
+    Note
+    ----
+    This function is useful for preparing MFCC features for input into
+    models that require a fixed input shape, such as certain types of 
+    neural networks.
     """
     padding_width = target_shape[1] - mfcc.shape[1]
     if padding_width > 0:
@@ -281,7 +558,50 @@ def pad_mfcc(mfcc, target_shape):
         return mfcc
 
 
-def compare_files_to_master(master_file: AudioFile, file_group: list[AudioFile], sr=22050):
+def compare_files_to_master(
+        master_file: AudioFile,
+        file_group: list[AudioFile],
+        sr: int = 22050
+    ):
+    """
+    Compare audio files to a master audio file using MFCCs.
+
+    This function loads a master audio file and a group of audio files,
+    normalizes them, and computes their Mel-frequency cepstral
+    coefficients (MFCCs). It then adjusts the MFCCs to have the same
+    shape across all files by padding or truncating them. Finally, it
+    calculates the absolute error between each file's MFCC and the
+    master's MFCC, and visualizes these errors in a series of plots.
+
+    Parameters
+    ----------
+    master_file : AudioFile
+        The master audio file against which other files are compared.
+    file_group : list[AudioFile]
+        A list of audio files to be compared to the master file.
+    sr : int, optional
+        The sampling rate to use for loading audio files. Defaults to
+        22050 Hz.
+
+    Notes
+    -----
+    - The `AudioFile` class must have `file_path`, `song_simple_name`,
+      `bit_depth`, and `sample_rate` attributes, and a
+      `get_by_sample_rate_name` method.
+    - This function requires `librosa` for audio processing and
+      `matplotlib.pyplot` for plotting.
+
+    Examples
+    --------
+    >>> master = AudioFile(file_path='master.wav', song_simple_name='Test Song',
+                           bit_depth=16, sample_rate=44100)
+    >>> files = [AudioFile(file_path=f'file{i}.wav', song_simple_name=f'File {i}',
+                           bit_depth=16, sample_rate=44100) for i in range(1, 4)]
+    >>> compare_files_to_master(master, files)
+    This will load the master file and each file in `files`, compute
+    their MFCCs, and plot the absolute error between each file's MFCCs
+    and the master's MFCCs.
+    """
     # Load and normalize the master audio file
     y_master, _ = librosa.load(master_file.file_path, sr=sr)
     y_master = librosa.util.normalize(y_master)
@@ -351,13 +671,13 @@ if __name__ == "__main__":
         column_names = remove_duplicates_from_list([audio_file.get_by_sample_rate_name() for audio_file in audio_files])
 
         # Create the DataFrame with these unique column names
-        dataset = pd.DataFrame(columns=column_names)
+        summary_data = pd.DataFrame(columns=column_names)
 
         for sample_rate, files in by_sample_rate.items():
             sample_paths = sorted(files)
 
             # plot_error_from_master(AudioFile(file_path=master_sample_path), sample_paths)     ## NOT VERY USEFUL
-            # compare_audio_samples(AudioFile(file_path=master_sample_path), sample_paths)
+            # compare_audio_samples_mse(AudioFile(file_path=master_sample_path), sample_paths)
 
             # sample_paths.append(AudioFile(master_sample_path))
             compare_files_to_master(AudioFile(master_sample_path), sample_paths)
@@ -365,16 +685,17 @@ if __name__ == "__main__":
             plt.close()
 
             for file in sample_paths:
-                distance = audio_similarity(master_sample_path, file.file_path)
-                # print(distance)
-                dataset.loc[file.sample_rate, file.get_by_sample_rate_name()] = distance
+                euclidean_distance = audio_similarity_euclidean_mfcc(master_sample_path, file.file_path)
+                # print(euclidean_distance)
+                summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()] = euclidean_distance
                 # plot_mfcc_error(master_sample_path, file.file_path)
 
-        ##### PLOT DATAFRAME #####
-        dataset = dataset.sort_index()
 
-        for column in dataset.columns:
-            plt.plot(dataset.index, dataset[column], label=column)
+        ##### PLOT DATAFRAME #####
+        summary_data = summary_data.sort_index()
+
+        for column in summary_data.columns:
+            plt.plot(summary_data.index, summary_data[column], label=column)
         plt.title(f'{folder} MFCC Euclidean Distance By Sample Rate and Encoding')
         plt.xlabel('Sample Rate (Hz)')
         plt.ylabel('Euclidean Distance of the MFCC')
