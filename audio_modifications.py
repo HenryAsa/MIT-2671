@@ -135,6 +135,34 @@ def remaster_audio_file(
                 export_to_mp3=make_mp3_files,
             )
 
+def normalize_audio(files, target_rms=0.1):
+    """
+    Normalize the volume of multiple audio files to a target loudness level.
+
+    :param files: List of file paths to the audio files.
+    :param target_dbfs: Target loudness level in dBFS.
+    """
+    for file_path in files:
+        # Load the audio file
+        data, samplerate = sf.read(file_path)
+
+        # Calculate current RMS of the audio
+        current_rms = np.sqrt(np.mean(data**2))
+
+        # Calculate the gain factor
+        gain = target_rms / current_rms
+
+        # Normalize the audio data
+        normalized_data = data * gain
+
+        # Save the normalized audio file
+        normalized_file_path = f'{os.path.splitext(file_path)[0]}_NORMALIZED{os.path.splitext(file_path)[1]}'.replace(DATA_RECORDED_SAMPLES_DIRECTORY, DATA_NORMALIZED_SAMPLES_DIRECTORY)
+        os.makedirs(normalized_file_path[:normalized_file_path.rfind("/")], exist_ok=True)
+        sf.write(normalized_file_path, normalized_data, samplerate, subtype='PCM_24')
+        print(f"Normalized {file_path} and saved to {normalized_file_path}")
+
+
+
 
 if __name__ == "__main__":
 
