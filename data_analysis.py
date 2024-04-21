@@ -68,18 +68,46 @@ def load_data_by_paritions(
 
     recorded_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_RECORDED_SAMPLES_DIRECTORY}'
     audio_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_AUDIO_SAMPLES_DIRECTORY}'
+    normalized_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_NORMALIZED_SAMPLES_DIRECTORY}'
 
     for song_folder in os.listdir(recorded_samples_folder_path):
+        if song_folder != "hotel_california_intro copy": continue
         recorded_filepaths = set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.mp3')))
         audio_samples_filepaths = set(get_filetype_from_folder(f'{audio_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{audio_samples_folder_path}/{song_folder}', '.mp3')))
+        normalized_filepaths = set(get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.mp3')))
 
         by_sample_rate: dict[int, set[AudioFile]] = {}
         by_file_type: dict[str, set[AudioFile]] = {}
 
-        master_sample_path = next((audio_file for audio_file in recorded_filepaths if audio_file.endswith("_S192000_B24.wav")))
-        recorded_filepaths.discard(master_sample_path)
+        #### NORMALIZE AUDIO FILES ####
+        unique_files = set([audio_file[:audio_file.rfind("_")] for audio_file in recorded_filepaths])
 
-        for filename in sorted(recorded_filepaths):
+        for unique_file in unique_files:
+            all_trial_files = [audio_file for audio_file in recorded_filepaths if audio_file.startswith(unique_file)]
+            average_audio_files(all_trial_files)
+            normalize_audio(all_trial_files + [f'{unique_file}_AVG.wav'])
+        ###############################
+
+        try:
+            master_sample_path = next((audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_NORMALIZED.wav")))
+        except:
+            master_sample_path = next((audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_AVG_NORMALIZED.wav")))
+            # master_samples_regex = re.compile(r'.*_S192000_B24_TRIAL\d+_NORMALIZED\.wav')
+            # master_samples = [AudioFile(audio_file) for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)]
+            # average_audio_files([audio_file for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)])
+            # print(master_samples)
+            # true_master = [AudioFile(audio_file) for audio_file in recorded_filepaths if audio_file.endswith("_S192000_B24_AVG.wav")]
+            # normalize_audio([audio_file for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)] + [true_master[0].file_path])
+            
+            # master_samples_regex_normalized = re.compile(r'.*_S192000_B24_TRIAL\d+_NORMALIZED\.wav')
+            # master_samples = [AudioFile(audio_file) for audio_file in recorded_filepaths if re.match(master_samples_regex_normalized, audio_file)]
+            # true_master = [AudioFile(audio_file) for audio_file in recorded_filepaths if audio_file.endswith("_S192000_B24_AVG_NORMALIZED.wav")]
+            # compare_audio_samples_mse(true_master[0], master_samples, True)
+            # master_sample_path = true_master[0].file_path
+
+        normalized_filepaths.discard(master_sample_path)
+
+        for filename in sorted(normalized_filepaths):
             current_file = AudioFile(file_path=filename)
 
             if current_file.file_type not in by_file_type:
@@ -101,7 +129,8 @@ def load_data_by_paritions(
 
 def compare_audio_samples_mse(
         master_sample_path: AudioFile,
-        audio_samples: list[AudioFile]
+        audio_samples: list[AudioFile],
+        allow_resampling_when_mismatched: bool = False,
     ) -> None:
     """
     Compare the master audio sample with a list of audio samples using
@@ -161,13 +190,17 @@ def compare_audio_samples_mse(
     for audio_file in audio_samples:
         # Load the comparison sample
         sr_sample, sample = wavfile.read(audio_file.file_path)
+        # Convert to float to match master sample
+        sample = sample.astype(np.float32)
 
         # Ensure the sampling rates match, resample if necessary (simple approach)
         if sr_sample != sr_master:
-            raise ValueError(f"Sample rate mismatch: Master({sr_master}) vs Sample({sr_sample}) in {audio_file}")
-
-        # Convert to float to match master sample
-        sample = sample.astype(np.float32)
+            if allow_resampling_when_mismatched:
+                print(f'RESAMPLED - Sample Rate Mismatch: Master({sr_master}) vs Sample({sr_sample}) in {audio_file}')
+                sample = librosa.resample(sample, orig_sr=sr_sample, target_sr=sr_master)
+                sr_sample = master_sample
+            else:
+                raise ValueError(f'Sample rate mismatch: Master({sr_master}) vs Sample({sr_sample}) in {audio_file}')
 
         # Ensure the samples have the same length
         min_len = min(master_sample.size, sample.size)
