@@ -1,10 +1,11 @@
 import os
 from pathlib import Path
+import re
 from pydub import AudioSegment
 import numpy as np
 import soundfile as sf
 
-from constants import MP3_BITRATES, TEST_BIT_DEPTHS, TEST_SAMPLE_RATES
+from constants import DATA_NORMALIZED_SAMPLES_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, MP3_BITRATES, TEST_BIT_DEPTHS, TEST_SAMPLE_RATES
 from collecting_data import simultaneous_record_playback
 from utils import get_audio_params_from_filepath, initialize_data_folders
 
@@ -219,13 +220,13 @@ if __name__ == "__main__":
 
     audio_samples = {
         "hotel_california_intro": {
-            "start_ms": 0,
-            "end_ms": 9000,
+            "start_ms": 500,
+            "end_ms": 2000,
             "filepath": "music/1-Hotel California.flac",
         },
         "hotel_california_guitar_solo": {
             "start_ms": 328000,
-            "end_ms": 333000,
+            "end_ms": 332000,
             "filepath": "music/1-Hotel California.flac",
         }
     }
@@ -248,15 +249,15 @@ if __name__ == "__main__":
         )
     ######################################################
 
-    NUM_TRIALS = 1
+    NUM_TRIALS = 10
 
     audio_files = sorted(str(filename) for filename in Path(samples_output_directory).rglob('*.[wav mp3]*'))
 
     for trial_num in range(1, NUM_TRIALS + 1):
         for filename in audio_files:
-            file_params = get_audio_params_from_filepath(filename)
+            file_params = get_audio_params_from_filepath(filename, trial_num=trial_num)
             output_file_directory = f'{recorded_output_directory}/{file_params["song_simple_name"]}'
-            output_filename = f'{file_params["output_filename"].split(".")[0]}.wav'
+            output_filename = f'{file_params["output_filename"].split(".")[0]}{f"_TRIAL{trial_num}"}.wav'
             print(file_params["output_filename"])
             os.makedirs(output_file_directory, exist_ok=True)
             simultaneous_record_playback(
