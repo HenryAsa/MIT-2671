@@ -8,8 +8,9 @@ from scipy.spatial.distance import euclidean
 from pydub import AudioSegment
 
 from audio_file_rep import AudioFile
-from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY
-from utils import get_audio_params_from_filepath, get_filetype_from_folder, remove_duplicates_from_list
+from audio_modifications import average_audio_files, normalize_audio
+from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_NORMALIZED_SAMPLES_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY
+from utils import get_filetype_from_folder, remove_duplicates_from_list
 
 
 def load_data_by_paritions(
@@ -71,10 +72,12 @@ def load_data_by_paritions(
     normalized_samples_folder_path = f'{DATA_DIRECTORY}/{time_folder_name}/{DATA_NORMALIZED_SAMPLES_DIRECTORY}'
 
     for song_folder in os.listdir(recorded_samples_folder_path):
-        if song_folder != "hotel_california_intro copy": continue
         recorded_filepaths = set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.mp3')))
         audio_samples_filepaths = set(get_filetype_from_folder(f'{audio_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{audio_samples_folder_path}/{song_folder}', '.mp3')))
-        normalized_filepaths = set(get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.mp3')))
+
+        if len(recorded_filepaths) == 0:
+            print(f'SKIPPING THE SONG FOLDER "{song_folder}" BECAUSE IT DOESN\'T CONTAIN ANY RECORDINGS')
+            continue
 
         by_sample_rate: dict[int, set[AudioFile]] = {}
         by_file_type: dict[str, set[AudioFile]] = {}
@@ -88,10 +91,12 @@ def load_data_by_paritions(
             normalize_audio(all_trial_files + [f'{unique_file}_AVG.wav'])
         ###############################
 
+        normalized_filepaths = get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.wav')
+
         try:
-            master_sample_path = next((audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_NORMALIZED.wav")))
+            master_sample_path = [audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_NORMALIZED.wav")][0]
         except:
-            master_sample_path = next((audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_AVG_NORMALIZED.wav")))
+            master_sample_path = [audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_AVG_NORMALIZED.wav")][0]
             # master_samples_regex = re.compile(r'.*_S192000_B24_TRIAL\d+_NORMALIZED\.wav')
             # master_samples = [AudioFile(audio_file) for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)]
             # average_audio_files([audio_file for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)])
@@ -105,7 +110,7 @@ def load_data_by_paritions(
             # compare_audio_samples_mse(true_master[0], master_samples, True)
             # master_sample_path = true_master[0].file_path
 
-        normalized_filepaths.discard(master_sample_path)
+        # normalized_filepaths.discard(master_sample_path)
 
         for filename in sorted(normalized_filepaths):
             current_file = AudioFile(file_path=filename)
@@ -225,7 +230,7 @@ def compare_audio_samples_mse(
     plt.legend()
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
-    plt.show()
+    # plt.show()
 
     # Print MSE values
     for path, mse in zip(audio_samples, mse_values):
@@ -311,7 +316,7 @@ def plot_error_from_master(
         plt.legend()
 
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
     # Print MSE values
     for path, mse in zip(audio_samples, mse_values):
@@ -527,18 +532,24 @@ def plot_mfcc_error(
     mfcc1 = librosa.feature.mfcc(y=y1, sr=sr)
     mfcc2 = librosa.feature.mfcc(y=y2, sr=sr)
 
+    # Ensure the MFCCs have the same shape
+    min_length = min(mfcc1.shape[1], mfcc2.shape[1])
+    mfcc1 = mfcc1[:, :min_length]
+    mfcc2 = mfcc2[:, :min_length]
+
     # Assuming both MFCC matrices have the same shape; if not, additional handling is needed
     error = np.abs(mfcc1 - mfcc2)  # Absolute error between MFCCs
 
     # Plot the error
-    plt.figure(figsize=(10, 4))
-    plt.imshow(error, aspect='auto', origin='lower', interpolation='nearest')
-    plt.title('MFCC Error Over Time')
-    plt.xlabel('Time')
-    plt.ylabel('MFCC Coefficients')
-    plt.colorbar(label='Absolute Error')
-    plt.tight_layout()
-    plt.show()
+    # plt.figure(figsize=(10, 4))
+    # plt.imshow(error, aspect='auto', origin='lower', interpolation='nearest')
+    # plt.title('MFCC Error Over Time')
+    # plt.xlabel('Time')
+    # plt.ylabel('MFCC Coefficients')
+    # plt.colorbar(label='Absolute Error')
+    # plt.tight_layout()
+    # # plt.show()
+    # plt.close()
 
 
 def pad_mfcc(
@@ -684,10 +695,10 @@ def compare_files_to_master(
 
     plt.tight_layout()
     # plt.show()
+    # plt.close()
 
 
-if __name__ == "__main__":
-
+def generate_plots_background_report():
     time_folder = '04-02_00-44'
     audio_recording_data = load_data_by_paritions(time_folder_name=time_folder)
 
@@ -713,9 +724,9 @@ if __name__ == "__main__":
             # compare_audio_samples_mse(AudioFile(file_path=master_sample_path), sample_paths)
 
             # sample_paths.append(AudioFile(master_sample_path))
-            compare_files_to_master(AudioFile(master_sample_path), sample_paths)
-            plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
-            plt.close()
+            # compare_files_to_master(AudioFile(master_sample_path), sample_paths)
+            # plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
+            # plt.close()
 
             for file in sample_paths:
                 euclidean_distance = audio_similarity_euclidean_mfcc(master_sample_path, file.file_path)
@@ -733,7 +744,87 @@ if __name__ == "__main__":
         plt.xlabel('Sample Rate (Hz)')
         plt.ylabel('Euclidean Distance of the MFCC')
         plt.legend()
-        plt.show()
+        # plt.show()
         plt.savefig(f'plots/{time_folder}/{folder}_distance.svg')
+        plt.close()
+        ##########################
+
+
+if __name__ == "__main__":
+
+    time_folder = '04-20_18-35'
+    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder)
+
+    for folder, folder_partitions in audio_recording_data.items():
+
+        master_sample_path: str = folder_partitions["master_filepath"]
+        by_sample_rate: dict[int, list[AudioFile]] = folder_partitions["by_sample_rate"]
+
+        # Flatten the list of AudioFile objects across all dictionary values
+        audio_files = sorted([file for files_list in by_sample_rate.values() for file in files_list])
+
+        # Extract unique column names by calling get_by_sample_rate_name on each AudioFile
+        # Use a set to avoid duplicate column names, if that's a concern
+        column_names = remove_duplicates_from_list([audio_file.get_by_sample_rate_name() for audio_file in audio_files])
+
+        # Create the DataFrame with these unique column names
+        summary_data = pd.DataFrame(columns=column_names)
+
+        os.makedirs(f'plots/{time_folder}', exist_ok=True)
+        for sample_rate, files in by_sample_rate.items():
+            sample_paths = sorted(files)
+            sample_avg_paths = sorted([audio_file for audio_file in sample_paths if "_AVG_" in audio_file.file_path])
+
+            # plot_error_from_master(AudioFile(file_path=master_sample_path), sample_paths)     ## NOT VERY USEFUL
+            # compare_audio_samples_mse(AudioFile(file_path=master_sample_path), sample_paths)
+
+            # # sample_paths.append(AudioFile(master_sample_path))
+            # compare_files_to_master(AudioFile(master_sample_path), sample_paths)
+            # plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
+            # plt.close()
+
+            # sample_avg_paths.append(AudioFile(master_sample_path))
+            compare_files_to_master(AudioFile(master_sample_path), sample_avg_paths)
+            plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
+            plt.close()
+
+            for file in sample_paths:
+                euclidean_distance = audio_similarity_euclidean_mfcc(master_sample_path, file.file_path)
+                print(f'{euclidean_distance}\t{file.file_path.split("/")[-1]}')
+
+                try:
+                    current_value = summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()]
+                except KeyError:
+                    summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()] = []
+                    current_value = summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()]
+
+                if not isinstance(current_value, list):
+                    summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()] = []
+                    current_value = summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()]
+                current_value.append(euclidean_distance)
+                # plot_mfcc_error(master_sample_path, file.file_path)
+
+
+        ##### PLOT DATAFRAME #####
+        summary_data = summary_data.sort_index()
+
+        summary_data.to_csv("MANGO.csv")
+
+        fig, ax = plt.subplots()
+
+        for index, row in summary_data.iterrows():
+            x_value = index
+            for column in summary_data.columns:
+                y_values = row[column]
+                if not isinstance(y_values, list):
+                    continue
+                plt.plot([x_value] * len(y_values), y_values, 'o', label=column if index == summary_data.index[0] else "")
+
+        plt.title(f'{folder} MFCC Euclidean Distance By Sample Rate and Encoding')
+        plt.xlabel('Sample Rate (Hz)')
+        plt.ylabel('Euclidean Distance of the MFCC')
+        plt.legend()
+        plt.savefig(f'plots/{time_folder}/{folder}_distance.svg')
+        # plt.show()
         plt.close()
         ##########################
