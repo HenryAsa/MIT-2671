@@ -162,6 +162,55 @@ def normalize_audio(files, target_rms=0.1):
         print(f"Normalized {file_path} and saved to {normalized_file_path}")
 
 
+def average_audio_files(
+        file_list: list[str],
+    ):
+
+    audios = []
+    lengths = []
+    rms_values = []
+
+    for file in file_list:
+        file_format = file.split('.')[-1]
+        # Load each file as an AudioSegment
+        audio: AudioSegment = AudioSegment.from_file(file, format=file_format)
+        audios.append(audio.set_channels(1))
+        lengths.append(len(audio))
+        rms_values.append(audio.rms)
+
+    # Calculate the average RMS value
+    average_rms = np.mean(rms_values)
+
+    # Determine the minimum length to align audio clips
+    min_length = min(lengths)
+
+    # Trim all audio segments to the minimum length
+    trimmed_audios = [audio[:min_length] for audio in audios]
+
+    # Convert all trimmed audios to arrays
+    arrays = [np.array(audio.get_array_of_samples()) for audio in trimmed_audios]
+
+    # Calculate the average of these arrays
+    avg_array = np.mean(arrays, axis=0)
+
+    # Dynamically calculate the max possible value based on bit depth
+    sample_width = audios[0].sample_width
+    max_possible_val = 32767
+
+    # # Calculate the RMS of the average and scale to match average RMS of inputs
+    # avg_rms = np.sqrt(np.mean(np.square(avg_array)))
+    # scaling_factor = average_rms / avg_rms if avg_rms != 0 else 1
+    # avg_array = np.int16(avg_array * scaling_factor)
+
+    # Normalize to prevent clipping
+    max_val = np.max(np.abs(avg_array))
+    scaling_factor = max_possible_val / max_val if max_val != 0 else 1
+    avg_array = np.int16(avg_array * scaling_factor)
+
+    # Export the averaged audio
+    output_file = re.sub(r'_TRIAL\d+', '_AVG', file)
+    sf.write(file=output_file, data=avg_array, samplerate=audios[0].frame_rate, subtype=f'PCM_24')
+    # averaged_audio.export(output_file, format="wav")
 
 
 if __name__ == "__main__":
