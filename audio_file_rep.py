@@ -66,7 +66,10 @@ class AudioFile:
     >>> print(audio_file.get_by_file_type_name())
     Sample Rate = 44100 Hz, Bit Depth = 24
     """
-    def __init__(self, file_path) -> None:
+    def __init__(
+            self,
+            file_path: str,
+        ) -> None:
         self.file_path: str = file_path
         file_params = get_audio_params_from_filepath(filepath=file_path)
         self.file_type: str = file_params["filetype"]
@@ -166,4 +169,4 @@ class AudioFile:
             return self.file_type < other.file_type
 
     def __repr__(self):
-        return f"{self.song_simple_name} ({self.file_type}): SR={self.sample_rate}, {'BD=' + str(self.bit_depth) if self.bit_depth else 'BR=' + str(self.bitrate)}"
+        return f"<{self.song_simple_name} ({self.file_type}): SR={self.sample_rate}, {'BD=' + str(self.bit_depth) if self.bit_depth else 'BR=' + str(self.bitrate)}>"
