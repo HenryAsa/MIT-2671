@@ -71,7 +71,7 @@ def load_data_by_paritions(
 
     for song_folder in os.listdir(recorded_samples_folder_path):
         recorded_filepaths = set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{recorded_samples_folder_path}/{song_folder}', '.mp3')))
-        # audio_samples_filepaths = set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.wav')).union(set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.mp3')))
+        audio_samples_filepaths = set(get_filetype_from_folder(f'{audio_samples_folder_path}/{song_folder}', '.wav')).union(set(get_filetype_from_folder(f'{audio_samples_folder_path}/{folder}', '.mp3')))
 
         by_sample_rate: dict[int, set[AudioFile]] = {}
         by_file_type: dict[str, set[AudioFile]] = {}
