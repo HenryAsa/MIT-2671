@@ -12,6 +12,9 @@ and played"""
 DATA_DIRECTORY = "data"
 """Default directory to store all of the raw data files"""
 
+DATA_NORMALIZED_SAMPLES_DIRECTORY = "normalized_samples"
+"""Directory name for the normalized recorded audio samples"""
+
 DATA_RECORDED_SAMPLES_DIRECTORY = "recorded_samples"
 """Directory name for the recorded samples"""
 
