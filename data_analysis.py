@@ -10,13 +10,17 @@ from pydub import AudioSegment
 
 from audio_file_rep import AudioFile
 from audio_modifications import average_audio_files, normalize_audio
-from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_NORMALIZED_SAMPLES_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY
+from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_NORMALIZED_SAMPLES_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, MATPLOTLIB_DEFAULTS
 from utils import get_filetype_from_folder, remove_duplicates_from_list, compute_confidence_interval
 
 
-def load_data_by_paritions(
+plt.rcParams.update(MATPLOTLIB_DEFAULTS)
+
+
+def load_data_by_partitions(
         time_folder_name: str,
         generate_normalized_files: bool = True,
+        master_sample_filename_ending: str = "_S192000_B24_NORMALIZED.wav",
     ) -> dict[str, dict[str, list[AudioFile]]]:
     """
     Load and organize audio data by partitions from specified time
@@ -94,26 +98,14 @@ def load_data_by_paritions(
                 normalize_audio(all_trial_files + [f'{unique_file}_AVG.wav'])
         ###############################
 
-        normalized_filepaths = get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.wav')
+        normalized_filepaths = set(get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.wav'))
 
         try:
-            master_sample_path = [audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_NORMALIZED.wav")][0]
+            master_sample_path = [audio_file for audio_file in normalized_filepaths if audio_file.endswith(master_sample_filename_ending)][0]
         except:
-            master_sample_path = [audio_file for audio_file in normalized_filepaths if audio_file.endswith("_S192000_B24_AVG_NORMALIZED.wav")][0]
-            # master_samples_regex = re.compile(r'.*_S192000_B24_TRIAL\d+_NORMALIZED\.wav')
-            # master_samples = [AudioFile(audio_file) for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)]
-            # average_audio_files([audio_file for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)])
-            # print(master_samples)
-            # true_master = [AudioFile(audio_file) for audio_file in recorded_filepaths if audio_file.endswith("_S192000_B24_AVG.wav")]
-            # normalize_audio([audio_file for audio_file in recorded_filepaths if re.match(master_samples_regex, audio_file)] + [true_master[0].file_path])
-            
-            # master_samples_regex_normalized = re.compile(r'.*_S192000_B24_TRIAL\d+_NORMALIZED\.wav')
-            # master_samples = [AudioFile(audio_file) for audio_file in recorded_filepaths if re.match(master_samples_regex_normalized, audio_file)]
-            # true_master = [AudioFile(audio_file) for audio_file in recorded_filepaths if audio_file.endswith("_S192000_B24_AVG_NORMALIZED.wav")]
-            # compare_audio_samples_mse(true_master[0], master_samples, True)
-            # master_sample_path = true_master[0].file_path
+            master_sample_path = [audio_file for audio_file in normalized_filepaths if audio_file.endswith(master_sample_filename_ending.replace('_NORMALIZED', '_AVG_NORMALIZED'))][0]
 
-        # normalized_filepaths.discard(master_sample_path)
+        normalized_filepaths.discard(master_sample_path)
 
         for filename in sorted(normalized_filepaths):
             current_file = AudioFile(file_path=filename)
@@ -697,6 +689,7 @@ def compare_files_to_master(
         plt.colorbar(label='Absolute Error')
 
     plt.tight_layout()
+    plt.rcParams.update(MATPLOTLIB_DEFAULTS)
     # plt.show()
     # plt.close()
 
@@ -728,7 +721,7 @@ def generate_plots_background_report():
 
             # sample_paths.append(AudioFile(master_sample_path))
             # compare_files_to_master(AudioFile(master_sample_path), sample_paths)
-            # plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
+            # plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.pdf')
             # plt.close()
 
             for file in sample_paths:
@@ -748,12 +741,14 @@ def generate_plots_background_report():
         plt.ylabel('Euclidean Distance of the MFCC')
         plt.legend()
         # plt.show()
-        plt.savefig(f'plots/{time_folder}/{folder}_distance.svg')
+        plt.savefig(f'plots/{time_folder}/{folder}_distance.pdf')
         plt.close()
         ##########################
 
 
-def apply_curve_fit(dataframe: pd.DataFrame):
+def apply_curve_fit(
+        dataframe: pd.DataFrame
+    ):
     def proportional(x, a):
         return a * x
 
@@ -774,7 +769,8 @@ def apply_curve_fit(dataframe: pd.DataFrame):
 
     functions = [proportional, linear, quadratic, cubic, exponential, logarithmic]
 
-    fig, ax = plt.subplots()
+    fig = plt.gcf()
+    ax = plt.gca()
     colors = plt.cm.viridis(np.linspace(0, 1, len(dataframe.columns)))  # Generate colors
 
     current_iteration = 0
@@ -817,6 +813,8 @@ def apply_curve_fit(dataframe: pd.DataFrame):
                 print(f"Error fitting data in column {column}: {e}")
                 continue
 
+        mean, l_bound, h_bound = compute_confidence_interval(x_data)
+
         if best_func:
             # Generate a dense set of x-values for plotting the smooth curve
             x_dense = np.linspace(min(x_data), max(x_data), 1000)
@@ -826,7 +824,7 @@ def apply_curve_fit(dataframe: pd.DataFrame):
             ax.plot(x_dense, y_fit, '-', label=f'Fit {column} ({best_func.__name__})', color=colors[current_iteration])
 
         current_iteration += 1
-    ax.legend()
+    ax.legend(ncols=2)
     # plt.show()
     
     # plt.show()
@@ -840,21 +838,22 @@ def plot_euclidean_distances(
         is_by_sample_rate: bool = True,
     ) -> pd.DataFrame:
 
-    analysis_name = "euclidean-distance"
+    analysis_name = f'euclidean-distance-{"bySR" if is_by_sample_rate else "byFT"}'
+    name_function = AudioFile.get_by_sample_rate_name if is_by_sample_rate else AudioFile.get_by_file_type_name
+    file_lookup = AudioFile.get_sample_rate if is_by_sample_rate else AudioFile.get_file_type
 
     # Flatten the list of AudioFile objects across all dictionary values
     audio_files = sorted([file for files_list in data_dict.values() for file in files_list])
 
     # Extract unique column names by calling get_by_sample_rate_name on each AudioFile
     # Use a set to avoid duplicate column names, if that's a concern
-    column_names = remove_duplicates_from_list([audio_file.get_by_sample_rate_name() for audio_file in audio_files])
+    column_names = remove_duplicates_from_list([name_function(audio_file) for audio_file in audio_files])
 
     # Create the DataFrame with these unique column names
     summary_data = pd.DataFrame(columns=column_names)
 
     os.makedirs(f'plots/{time_folder}/{current_folder}/{analysis_name}', exist_ok=True)
 
-    name_function = AudioFile.get_by_sample_rate_name if is_by_sample_rate else AudioFile.get_by_file_type_name
 
     for sample_rate, files in data_dict.items():
         sample_paths = sorted(files)
@@ -878,107 +877,127 @@ def plot_euclidean_distances(
 
     ##### PLOT DATAFRAME #####
     summary_data = summary_data.sort_index()
-    summary_data.to_csv(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_summary.csv')
+    summary_data.to_csv(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_summary.csv')
+
+    fig, ax = plt.subplots()
 
     apply_curve_fit(summary_data)
 
-    plt.title(f'{current_folder} MFCC Euclidean Distance By Sample Rate and Encoding')
+    # plt.rc("line", **MATPLOTLIB_LINE_DEFAULTS)
+    # plt.rc("font", **MATPLOTLIB_FONT_DEFAULTS)
+    # plt.title(f'{current_folder} MFCC Euclidean Distance By Sample Rate and Encoding')
     plt.xlabel('Sample Rate (Hz)')
     plt.ylabel('Euclidean Distance of the MFCC')
-    plt.legend()
-    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_summary.svg')
-    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_summary.png')
-    plt.show()
+    plt.legend(ncols=2)
+    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_summary.pdf')
+    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_summary.png')
+    # plt.show()
     plt.close()
     ##########################
 
     return summary_data
 
 
-        master_sample_path: str = folder_partitions["master_filepath"]
-        by_sample_rate: dict[int, list[AudioFile]] = folder_partitions["by_sample_rate"]
+def plot_mean_squared_error(
+        data_dict: dict[int, list[AudioFile]],
+        time_folder: str,
+        current_folder: str,
+        master_sample_path: str,
+        is_by_sample_rate: bool = True,
+    ) -> pd.DataFrame:
 
-        # Flatten the list of AudioFile objects across all dictionary values
-        audio_files = sorted([file for files_list in by_sample_rate.values() for file in files_list])
+    analysis_name = f'euclidean-distance-{"bySR" if is_by_sample_rate else "byFT"}'
+    name_function = AudioFile.get_by_sample_rate_name if is_by_sample_rate else AudioFile.get_by_file_type_name
+    file_lookup = AudioFile.get_sample_rate if is_by_sample_rate else AudioFile.get_file_type
 
-        # Extract unique column names by calling get_by_sample_rate_name on each AudioFile
-        # Use a set to avoid duplicate column names, if that's a concern
-        column_names = remove_duplicates_from_list([audio_file.get_by_sample_rate_name() for audio_file in audio_files])
+    # Flatten the list of AudioFile objects across all dictionary values
+    audio_files = sorted([file for files_list in data_dict.values() for file in files_list])
 
-        # Create the DataFrame with these unique column names
-        summary_data = pd.DataFrame(columns=column_names)
+    # Extract unique column names by calling get_by_sample_rate_name on each AudioFile
+    # Use a set to avoid duplicate column names, if that's a concern
+    column_names = remove_duplicates_from_list([name_function(audio_file) for audio_file in audio_files])
 
-        os.makedirs(f'plots/{time_folder}', exist_ok=True)
-        for sample_rate, files in by_sample_rate.items():
-            sample_paths = sorted(files)
-            sample_avg_paths = sorted([audio_file for audio_file in sample_paths if "_AVG_" in audio_file.file_path])
+    # Create the DataFrame with these unique column names
+    summary_data = pd.DataFrame(columns=column_names)
 
-            # plot_error_from_master(AudioFile(file_path=master_sample_path), sample_paths)     ## NOT VERY USEFUL
-            # compare_audio_samples_mse(AudioFile(file_path=master_sample_path), sample_paths)
+    os.makedirs(f'plots/{time_folder}/{current_folder}/{analysis_name}', exist_ok=True)
 
-            # # sample_paths.append(AudioFile(master_sample_path))
-            # compare_files_to_master(AudioFile(master_sample_path), sample_paths)
-            # plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
-            # plt.close()
+    for sample_rate, files in data_dict.items():
+        sample_paths = sorted(files)
+        sample_avg_paths = sorted([audio_file for audio_file in sample_paths if "_AVG_" in audio_file.file_path])
 
-            # sample_avg_paths.append(AudioFile(master_sample_path))
-            compare_files_to_master(AudioFile(master_sample_path), sample_avg_paths)
-            plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
-            plt.close()
+        # plot_error_from_master(AudioFile(file_path=master_sample_path), sample_paths)     ## NOT VERY USEFUL
+        # compare_audio_samples_mse(AudioFile(file_path=master_sample_path), sample_paths)
 
-            for file in sample_paths:
-                euclidean_distance = audio_similarity_euclidean_mfcc(master_sample_path, file.file_path)
-                print(f'{euclidean_distance}\t{file.file_path.split("/")[-1]}')
+        # # sample_paths.append(AudioFile(master_sample_path))
+        # compare_files_to_master(AudioFile(master_sample_path), sample_paths)
+        # plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.pdf')
+        # plt.close()
 
-                try:
-                    current_value = summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()]
-                except KeyError:
-                    summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()] = []
-                    current_value = summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()]
-
-                if not isinstance(current_value, list):
-                    summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()] = []
-                    current_value = summary_data.loc[file.sample_rate, file.get_by_sample_rate_name()]
-                current_value.append(euclidean_distance)
-                # plot_mfcc_error(master_sample_path, file.file_path)
+        # sample_avg_paths.append(AudioFile(master_sample_path))
+        compare_files_to_master(AudioFile(master_sample_path), sample_avg_paths)
+        plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_S{sample_rate}.pdf')
+        plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_S{sample_rate}.png')
+        plt.close()
 
 
-    time_folder = '04-20_18-35'
+    return summary_data
+
+
+if __name__ == "__main__":
+
+    # time_folder = '04-20_18-35'
     # time_folder = '04-21_17-53'
-    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder, generate_normalized_files=False)
-
-    for folder, folder_partitions in audio_recording_data.items():
-
-        master_sample_path: str = folder_partitions["master_filepath"]
-
-        by_sample_rate: dict[int, list[AudioFile]] = folder_partitions["by_sample_rate"]
-        #### PLOT EUCLIDEAN DISTANCE BY SAMPLE RATE ####
-        summarized_euclidean_distance_by_sample_rate = plot_euclidean_distances(
-            data_dict=by_sample_rate,
-            time_folder=time_folder,
-            current_folder=folder,
-            master_sample_path=master_sample_path,
-            is_by_sample_rate=True,
+    for time_folder in ['04-20_18-35', '04-21_17-53']:
+        print(f'_S{192 if time_folder == "04-20_18-35" else 48}000_B24_NORMALIZED.wav')
+        audio_recording_data = load_data_by_partitions(
+            time_folder_name=time_folder,
+            generate_normalized_files=False,
+            master_sample_filename_ending=f'_S{192 if time_folder == "04-20_18-35" else 48}000_B24_NORMALIZED.wav',
         )
-        ################################################
 
-        #### PLOT MEAN SQUARED ERROR BY SAMPLE RATE ####
-        summarized_euclidean_distance_by_sample_rate = plot_mean_squared_error(
-            data_dict=by_sample_rate,
-            time_folder=time_folder,
-            current_folder=folder,
-            master_sample_path=master_sample_path,
-            is_by_sample_rate=True,
-        )
-        ################################################
+        for folder, folder_partitions in audio_recording_data.items():
 
-        by_file_type: dict[int, list[AudioFile]] = folder_partitions["by_file_type"]
-        #### PLOT EUCLIDEAN DISTANCE BY FILE TYPE ####
-        summarized_euclidean_distance_by_file_type = plot_euclidean_distances(
-            data_dict=by_file_type,
-            time_folder=time_folder,
-            current_folder=folder,
-            master_sample_path=master_sample_path,
-            is_by_sample_rate=False,
-        )
-        ##############################################
+            master_sample_path: str = folder_partitions["master_filepath"]
+
+            by_sample_rate: dict[int, list[AudioFile]] = folder_partitions["by_sample_rate"]
+            #### PLOT EUCLIDEAN DISTANCE BY SAMPLE RATE ####
+            summarized_euclidean_distance_by_sample_rate = plot_euclidean_distances(
+                data_dict=by_sample_rate,
+                time_folder=time_folder,
+                current_folder=folder,
+                master_sample_path=master_sample_path,
+                is_by_sample_rate=True,
+            )
+            ################################################
+
+            # #### PLOT MEAN SQUARED ERROR BY SAMPLE RATE ####
+            # summarized_euclidean_distance_by_sample_rate = plot_mean_squared_error(
+            #     data_dict=by_sample_rate,
+            #     time_folder=time_folder,
+            #     current_folder=folder,
+            #     master_sample_path=master_sample_path,
+            #     is_by_sample_rate=True,
+            # )
+            # ################################################
+
+            # by_file_type: dict[int, list[AudioFile]] = folder_partitions["by_file_type"]
+            # #### PLOT EUCLIDEAN DISTANCE BY FILE TYPE ####
+            # summarized_euclidean_distance_by_file_type = plot_euclidean_distances(
+            #     data_dict=by_file_type,
+            #     time_folder=time_folder,
+            #     current_folder=folder,
+            #     master_sample_path=master_sample_path,
+            #     is_by_sample_rate=False,
+            # )
+            # ##############################################
+
+            # #### PLOT MEAN SQUARED ERROR BY FILE TYPE ####
+            # summarized_euclidean_distance_by_sample_rate = plot_mean_squared_error(
+            #     data_dict=by_file_type,
+            #     time_folder=time_folder,
+            #     current_folder=folder,
+            #     master_sample_path=master_sample_path,
+            #     is_by_sample_rate=False,
+            # )
+            # ################################################

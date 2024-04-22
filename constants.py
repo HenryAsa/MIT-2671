@@ -40,17 +40,41 @@ RECORDED_SAMPLE_FILENAME_PREFIX = "result_"
 
 TEST_SAMPLE_RATES = [
     4000,
+    6000,
     8000,
+    10000,
+    12000,
     16000,
+    20000,
     24000,
+    28000,
     32000,
+    36000,
+    40000,
     44100,
     48000,
-    82000,
-    96000,
-    192000
+    # 88200,
+    # 96000,
+    # 192000
 ]
 """Sample Rates (in Hz) of the audio test samples"""
 
 TEST_BIT_DEPTHS = [8, 16, 24]
 """Bit depths to use for testing (in bits)"""
+
+
+MATPLOTLIB_DEFAULTS = { ## https://matplotlib.org/stable/api/matplotlib_configuration_api.html#matplotlib.RcParams
+    "axes.labelsize": 30,
+    "axes.titlesize": 40,
+    "figure.figsize": [20, 12],
+    "figure.subplot.left": 0.075,
+    "figure.subplot.right": 1 - 0.025,
+    "figure.subplot.bottom": 0.075,
+    "figure.subplot.top": 1 - 0.025,
+    "legend.fontsize": 20,
+    "lines.linewidth": 4,
+    "savefig.dpi": 600,
+    "xtick.labelsize": 24,
+    "ytick.labelsize": 24,
+}
+"""Default styling presets for Matplotlib plots"""

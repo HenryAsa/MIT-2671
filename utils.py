@@ -2,7 +2,9 @@
 from pathlib import Path
 from datetime import datetime
 import os
+from typing import Iterable, Optional
 import numpy as np
+from scipy.stats import t
 
 from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, RECORDED_SAMPLE_FILENAME_PREFIX
 
@@ -19,7 +21,9 @@ def initialize_data_folders() -> tuple[str, str]:
     return samples_output_directory, recorded_output_directory
 
 
-def get_audio_params_from_filepath(filepath: str) -> dict:
+def get_audio_params_from_filepath(
+        filepath: str,
+    ) -> dict:
     print(filepath)
     file_params = str(filepath).split("/")[-1].split("_")
     output = {}
@@ -31,13 +35,28 @@ def get_audio_params_from_filepath(filepath: str) -> dict:
         output["filetype"] = f'.{file_params[-1].split(".")[-1]}'
         output["output_filename"] = f'{RECORDED_SAMPLE_FILENAME_PREFIX}{output["filetype"][1:]}_{filepath.split("/")[-1]}'
 
+    is_normalized = file_params[-1].startswith("NORMALIZED")
+    if is_normalized:
+        normalized_offset = 1
+        output["is_normalized"] = True
+    else:
+        normalized_offset = 0
+        output["is_normalized"] = False
+
+    is_trial = file_params[-1 - normalized_offset].startswith(("TRIAL", "AVG"))
+    if is_trial:
+        trial_num_offset = 1
+        output["trial_num"] = int(file_params[-1].split(".")[0][5:]) if file_params[-1 - normalized_offset].startswith(("TRIAL", "AVG")) == "TRIAL" else "AVG"
+    else:
+        trial_num_offset = 0
+
     output["song_simple_name"] = f'{filepath.split("/")[-2]}'
-    output["sample_rate"] = int(file_params[-2][1:])
+    output["sample_rate"] = int(file_params[-2 - normalized_offset - trial_num_offset][1:])
 
     if output["filetype"] == '.mp3':
-        output["bitrate"] = int(file_params[-1].split(".")[0][2:-1])
+        output["bitrate"] = int(file_params[-1 - normalized_offset - trial_num_offset].split(".")[0][2:-1])
     else:
-        output["bit_depth"] = int(file_params[-1].split(".")[0][1:])
+        output["bit_depth"] = int(file_params[-1 - normalized_offset - trial_num_offset].split(".")[0][1:])
 
     return output
 
@@ -70,7 +89,6 @@ def remove_duplicates_from_list(lst: list) -> list:
             seen.add(item)
             result.append(item)
     return result
-
 
 
 def get_files_from_folder(folder: str) -> list[str]:
@@ -130,7 +148,7 @@ def get_filetype_from_folder(folder: str, filetype: str) -> list[str]:
 def compute_confidence_interval(
         data: Iterable[float],
         confidence_interval: float = 0.95
-    ) -> tuple[float, float]:
+    ) -> tuple[float, float, float]:
     """
     Calculate the 95% confidence interval for a dataset using the t-distribution.
 

@@ -90,6 +90,12 @@ class AudioFile:
     #     assert self.file_type in {'.flac', '.wav'}, f'bit depth is only attainable for .flac and .wav files, but this file is of type {self.file_type}'
         # return self.bit_depth
 
+    def get_sample_rate(self):
+        return self.sample_rate
+
+    def get_file_type(self):
+        return self.file_type
+
     def get_by_sample_rate_name(self):
         if self.file_type == '.mp3':
             return f'MP3: BitRate = {self.bitrate} kb/s'
