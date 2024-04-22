@@ -916,16 +916,6 @@ def plot_euclidean_distances(
 
     summary_data.to_csv(f'plots/{time_folder}/{current_folder}/euclidean-distance_summary.csv')
 
-    # fig, ax = plt.subplots()
-
-    # for index, row in summary_data.iterrows():
-    #     x_value = index
-    #     for column in summary_data.columns:
-    #         y_values = row[column]
-    #         if not isinstance(y_values, list):
-    #             continue
-    #         plt.plot([x_value] * len(y_values), y_values, 'o', label=column if index == summary_data.index[0] else "")
-
     apply_curve_fit(summary_data)
 
     os.makedirs(f'plots/{time_folder}', exist_ok=True)
