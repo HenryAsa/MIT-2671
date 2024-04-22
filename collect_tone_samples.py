@@ -2,12 +2,23 @@
 
 import os
 from pathlib import Path
-from audio_modifications import crop_audio, remaster_audio_file
+from audio_modifications import convert_aif_to_wav, crop_audio, remaster_audio_file
 from collecting_data import simultaneous_record_playback
-from utils import get_audio_params_from_filepath, initialize_data_folders
+from utils import get_audio_params_from_filepath, get_filetype_from_folder, initialize_data_folders
 
 
 if __name__ == "__main__":
+
+    # files = get_filetype_from_folder("music/trumpet/samples_aif", ".aif")
+
+    # for file in files:
+    #     print(file)
+    #     new_filename = file.replace(".aif", ".wav").replace("samples_aif", "samples")
+    #     convert_aif_to_wav(file, new_filename)
+
+    # raise TypeError
+
+
     samples_output_directory, recorded_output_directory = initialize_data_folders()
 
     audio_samples = {}
@@ -18,8 +29,8 @@ if __name__ == "__main__":
     for note in notes_to_play:
         for instrument in instruments_to_test:
             audio_samples[f'{instrument}_{note}'] = {
-                "start_ms": 500,
-                "end_ms": 2500,
+                "start_ms": 1000,
+                "end_ms": 2000,
                 "filepath": f"music/{instrument}/samples/{instrument}_{note}.wav",
                 }
         audio_samples[f'tuba_{note}'] = {

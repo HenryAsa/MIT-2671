@@ -1,20 +1,22 @@
-import librosa
 import matplotlib.pyplot as plt
+import librosa
 import numpy as np
 import os
 import pandas as pd
 from scipy.io import wavfile
 from scipy.spatial.distance import euclidean
+from scipy.optimize import curve_fit
 from pydub import AudioSegment
 
 from audio_file_rep import AudioFile
 from audio_modifications import average_audio_files, normalize_audio
 from constants import DATA_AUDIO_SAMPLES_DIRECTORY, DATA_DIRECTORY, DATA_NORMALIZED_SAMPLES_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY
-from utils import get_filetype_from_folder, remove_duplicates_from_list
+from utils import get_filetype_from_folder, remove_duplicates_from_list, compute_confidence_interval
 
 
 def load_data_by_paritions(
         time_folder_name: str,
+        generate_normalized_files: bool = True,
     ) -> dict[str, dict[str, list[AudioFile]]]:
     """
     Load and organize audio data by partitions from specified time
@@ -83,12 +85,13 @@ def load_data_by_paritions(
         by_file_type: dict[str, set[AudioFile]] = {}
 
         #### NORMALIZE AUDIO FILES ####
-        unique_files = set([audio_file[:audio_file.rfind("_")] for audio_file in recorded_filepaths])
+        if generate_normalized_files:
+            unique_files = set([audio_file[:audio_file.rfind("_")] for audio_file in recorded_filepaths])
 
-        for unique_file in unique_files:
-            all_trial_files = [audio_file for audio_file in recorded_filepaths if audio_file.startswith(unique_file)]
-            average_audio_files(all_trial_files)
-            normalize_audio(all_trial_files + [f'{unique_file}_AVG.wav'])
+            for unique_file in unique_files:
+                all_trial_files = [audio_file for audio_file in recorded_filepaths if audio_file.startswith(unique_file)]
+                average_audio_files(all_trial_files)
+                normalize_audio(all_trial_files + [f'{unique_file}_AVG.wav'])
         ###############################
 
         normalized_filepaths = get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.wav')
@@ -750,10 +753,116 @@ def generate_plots_background_report():
         ##########################
 
 
+def apply_curve_fit(dataframe: pd.DataFrame):
+    def proportional(x, a):
+        return a * x
+
+    def linear(x, a, b):
+        return a * x + b
+
+    def quadratic(x, a, b, c):
+        return a * x**2 + b * x + c
+
+    def cubic(x, a, b, c, d):
+        return a * x**3 + b * x**2 + c * x + d
+
+    def exponential(x, a, b, c):
+        return a * np.exp(b * x) + c
+
+    def logarithmic(x, a, b, c):
+        return a * np.log(b * x + 1) + c
+
+    functions = [proportional, linear, quadratic, cubic, exponential, logarithmic]
+
+    fig, ax = plt.subplots()
+    colors = plt.cm.viridis(np.linspace(0, 1, len(dataframe.columns)))  # Generate colors
+
+    current_iteration = 0
+
+    for column in dataframe.columns:  # Assuming first column is index or non-numeric
+        x_data = []
+        y_data = []
+
+        # Accumulate all y-values and their corresponding x-values
+        for index, row in dataframe.iterrows():
+            y_values = row[column]
+            if isinstance(y_values, list):
+                x_data.extend([index] * len(y_values))
+                y_data.extend(y_values)
+
+        if len(y_data) < 4:  # Need at least 4 data points to fit a cubic polynomial
+            current_iteration += 1
+            continue
+
+        x_data = np.array(x_data)
+        y_data = np.array(y_data)
+
+
+        # best_func = None
+        # best_rss = np.inf
+
+        # for func in functions:
+        #     try:
+        #         popt, pcov = curve_fit(func, x_data[:len(y_data)], y_data, maxfev=10000)
+        #         residuals = y_data - func(x_data[:len(y_data)], *popt)
+        #         rss = np.sum(residuals**2)
+
+        #         if rss < best_rss:
+        #             best_rss = rss
+        #             best_func = func
+        #             best_popt = popt
+        #     except Exception as e:
+        #         print(f"Error fitting {func.__name__} to column {column}: {e}")
+        #         continue
+
+        # if best_func:
+        #     y_fit = best_func(x_data[:len(y_data)], *best_popt)
+        #     ax.plot(x_data[:len(y_data)], y_data, 'o', label=f'Raw {column}')
+        #     ax.plot(x_data[:len(y_data)], y_fit, '-', label=f'Best Fit {column} ({best_func.__name__})')
+
+
+        best_func = None
+        best_rss = np.inf
+
+        for func in functions:
+            # Fit the curve
+            try:
+                popt, pcov = curve_fit(func, x_data, y_data, maxfev=10000)
+                residuals = y_data - func(x_data[:len(y_data)], *popt)
+                rss = np.sum(residuals**2)
+
+                # if rss < best_rss:
+                if func == logarithmic:
+                    best_rss = rss
+                    best_func = func
+                    best_popt = popt
+
+            except Exception as e:
+                print(f"Error fitting data in column {column}: {e}")
+                continue
+
+        if best_func:
+            # Generate a dense set of x-values for plotting the smooth curve
+            x_dense = np.linspace(min(x_data), max(x_data), 1000)
+            y_fit = best_func(x_dense, *best_popt)
+
+            ax.plot(x_data, y_data, 'o', label=f'Raw {column}', color=colors[current_iteration])
+            ax.plot(x_dense, y_fit, '-', label=f'Fit {column} ({best_func.__name__})', color=colors[current_iteration])
+
+        current_iteration += 1
+    ax.legend()
+    # plt.show()
+    
+    # plt.show()
+
+
+
+
 if __name__ == "__main__":
 
-    time_folder = '04-20_18-35'
-    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder)
+    # time_folder = '04-20_18-35'
+    time_folder = '04-21_17-53'
+    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder, generate_normalized_files=True)
 
     for folder, folder_partitions in audio_recording_data.items():
 
@@ -820,11 +929,13 @@ if __name__ == "__main__":
                     continue
                 plt.plot([x_value] * len(y_values), y_values, 'o', label=column if index == summary_data.index[0] else "")
 
+        apply_curve_fit(summary_data)
+
         plt.title(f'{folder} MFCC Euclidean Distance By Sample Rate and Encoding')
         plt.xlabel('Sample Rate (Hz)')
         plt.ylabel('Euclidean Distance of the MFCC')
         plt.legend()
         plt.savefig(f'plots/{time_folder}/{folder}_distance.svg')
-        # plt.show()
+        plt.show()
         plt.close()
         ##########################

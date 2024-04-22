@@ -60,7 +60,7 @@ def crop_audio(
     """
     # Determine the format based on the file extension
     file_format = input_file.split('.')[-1]
-    if file_format not in {'flac', 'mp3', 'wav'}:
+    if file_format not in {'flac', 'mp3', 'wav', 'aif'}:
         raise ValueError("Unsupported file format: Only .flac and .wav files are supported.")
 
     # Load the audio file
@@ -73,9 +73,27 @@ def crop_audio(
     #############################
 
     os.makedirs(output_directory, exist_ok=True)
-    cropped_audio.export(f'{output_directory}/{output_filename}', format=file_format if file_format != 'flac' else 'wav')
+    cropped_audio.export(f'{output_directory}/{output_filename}', format='wav' if file_format in {'flac', 'aif'} else file_format)
 
     return cropped_audio
+
+
+def convert_aif_to_wav(aif_path: str, wav_path: str) -> None:
+    """
+    Convert an AIF file to a WAV file without losing quality.
+
+    Parameters:
+        aif_path (str): The file path for the input AIF file.
+        wav_path (str): The file path where the output WAV file will be saved.
+
+    Returns:
+        None: The function outputs the WAV file at the specified path.
+    """
+    # Load the AIF file
+    data, sample_rate = sf.read(aif_path)
+
+    # Export audio to WAV format
+    sf.write(wav_path, data, sample_rate, subtype='PCM_24')
 
 
 def modify_audio_sample(
@@ -255,7 +273,7 @@ if __name__ == "__main__":
 
     for trial_num in range(1, NUM_TRIALS + 1):
         for filename in audio_files:
-            file_params = get_audio_params_from_filepath(filename, trial_num=trial_num)
+            file_params = get_audio_params_from_filepath(filename)
             output_file_directory = f'{recorded_output_directory}/{file_params["song_simple_name"]}'
             output_filename = f'{file_params["output_filename"].split(".")[0]}{f"_TRIAL{trial_num}"}.wav'
             print(file_params["output_filename"])
