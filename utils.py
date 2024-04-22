@@ -127,6 +127,47 @@ def get_filetype_from_folder(folder: str, filetype: str) -> list[str]:
     return sorted(str(filepath) for filepath in Path(folder).rglob(f'*.{filetype[1:] if filetype.startswith(".") else filetype}'))
 
 
+def compute_confidence_interval(
+        data: Iterable[float],
+        confidence_interval: float = 0.95
+    ) -> tuple[float, float]:
+    """
+    Calculate the 95% confidence interval for a dataset using the t-distribution.
+
+    Parameters:
+    - data (list or numpy array): The dataset for which the confidence interval is calculated.
+
+    Returns:
+    - tuple: Lower and upper bounds of the 95% confidence interval.
+    """
+    # Convert data to numpy array for convenience if it's not already one
+    data = np.array(data)
+
+    # Calculate mean
+    mean = np.mean(data)
+
+    # Calculate standard deviation
+    std = np.std(data, ddof=1)  # ddof=1 provides sample standard deviation
+
+    # Calculate the number of data points
+    n = len(data)
+
+    remaining_range = confidence_interval + (1 - confidence_interval)/2
+
+    # Calculate the critical t-value for 95% confidence
+    # Degrees of freedom = n - 1
+    t_critical = t.ppf(remaining_range, n - 1)  # 0.975 because 2-tailed test
+
+    # Calculate the margin of error
+    margin_error = t_critical * (std / np.sqrt(n))
+
+    # Calculate lower and upper bounds of the confidence interval
+    ci_lower = mean - margin_error
+    ci_upper = mean + margin_error
+
+    return (mean, ci_lower, ci_upper)
+
+
 def map_to_discrete(
         array: np.ndarray,
         array_bounds: list[int],

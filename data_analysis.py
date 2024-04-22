@@ -856,13 +856,91 @@ def apply_curve_fit(dataframe: pd.DataFrame):
     # plt.show()
 
 
+def plot_euclidean_distances(
+        data_dict: dict[int, list[AudioFile]],
+        time_folder: str,
+        current_folder: str,
+        master_sample_path: str,
+        is_by_sample_rate: bool = True,
+    ) -> pd.DataFrame:
 
+    # Flatten the list of AudioFile objects across all dictionary values
+    audio_files = sorted([file for files_list in data_dict.values() for file in files_list])
 
-if __name__ == "__main__":
+    # Extract unique column names by calling get_by_sample_rate_name on each AudioFile
+    # Use a set to avoid duplicate column names, if that's a concern
+    column_names = remove_duplicates_from_list([audio_file.get_by_sample_rate_name() for audio_file in audio_files])
 
-    # time_folder = '04-20_18-35'
-    time_folder = '04-21_17-53'
-    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder, generate_normalized_files=True)
+    # Create the DataFrame with these unique column names
+    summary_data = pd.DataFrame(columns=column_names)
+
+    os.makedirs(f'plots/{time_folder}/{current_folder}', exist_ok=True)
+
+    name_function = AudioFile.get_by_sample_rate_name if is_by_sample_rate else AudioFile.get_by_file_type_name
+
+    for sample_rate, files in data_dict.items():
+        sample_paths = sorted(files)
+        sample_avg_paths = sorted([audio_file for audio_file in sample_paths if "_AVG_" in audio_file.file_path])
+
+        # # plot_error_from_master(AudioFile(file_path=master_sample_path), sample_paths)     ## NOT VERY USEFUL
+        # # compare_audio_samples_mse(AudioFile(file_path=master_sample_path), sample_paths)
+
+        # # # sample_paths.append(AudioFile(master_sample_path))
+        # # compare_files_to_master(AudioFile(master_sample_path), sample_paths)
+        # # plt.savefig(f'plots/{time_folder}/{folder}_S{sample_rate}.svg')
+        # # plt.close()
+
+        # # sample_avg_paths.append(AudioFile(master_sample_path))
+        # compare_files_to_master(AudioFile(master_sample_path), sample_avg_paths)
+        # plt.savefig(f'plots/{time_folder}/{current_folder}/euclidean_S{sample_rate}.svg')
+        # plt.close()
+
+        for file in sample_paths:
+            euclidean_distance = audio_similarity_euclidean_mfcc(master_sample_path, file.file_path)
+            print(f'{euclidean_distance}\t{file.file_path.split("/")[-1]}')
+
+            try:
+                current_value = summary_data.loc[file.sample_rate, name_function(file)]
+            except KeyError:
+                summary_data.loc[file.sample_rate, name_function(file)] = []
+                current_value = summary_data.loc[file.sample_rate, name_function(file)]
+
+            if not isinstance(current_value, list):
+                summary_data.loc[file.sample_rate, name_function(file)] = []
+                current_value = summary_data.loc[file.sample_rate, name_function(file)]
+            current_value.append(euclidean_distance)
+            # plot_mfcc_error(master_sample_path, file.file_path)
+
+    ##### PLOT DATAFRAME #####
+    summary_data = summary_data.sort_index()
+
+    summary_data.to_csv(f'plots/{time_folder}/{current_folder}/euclidean-distance_summary.csv')
+
+    # fig, ax = plt.subplots()
+
+    # for index, row in summary_data.iterrows():
+    #     x_value = index
+    #     for column in summary_data.columns:
+    #         y_values = row[column]
+    #         if not isinstance(y_values, list):
+    #             continue
+    #         plt.plot([x_value] * len(y_values), y_values, 'o', label=column if index == summary_data.index[0] else "")
+
+    apply_curve_fit(summary_data)
+
+    os.makedirs(f'plots/{time_folder}', exist_ok=True)
+
+    plt.title(f'{current_folder} MFCC Euclidean Distance By Sample Rate and Encoding')
+    plt.xlabel('Sample Rate (Hz)')
+    plt.ylabel('Euclidean Distance of the MFCC')
+    plt.legend()
+    plt.savefig(f'plots/{time_folder}/{current_folder}/euclidean-distance_summary.svg')
+    plt.savefig(f'plots/{time_folder}/{current_folder}/euclidean-distance_summary.png')
+    plt.show()
+    plt.close()
+    ##########################
+
+    return summary_data
 
     for folder, folder_partitions in audio_recording_data.items():
 
