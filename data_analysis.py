@@ -797,30 +797,6 @@ def apply_curve_fit(dataframe: pd.DataFrame):
         x_data = np.array(x_data)
         y_data = np.array(y_data)
 
-
-        # best_func = None
-        # best_rss = np.inf
-
-        # for func in functions:
-        #     try:
-        #         popt, pcov = curve_fit(func, x_data[:len(y_data)], y_data, maxfev=10000)
-        #         residuals = y_data - func(x_data[:len(y_data)], *popt)
-        #         rss = np.sum(residuals**2)
-
-        #         if rss < best_rss:
-        #             best_rss = rss
-        #             best_func = func
-        #             best_popt = popt
-        #     except Exception as e:
-        #         print(f"Error fitting {func.__name__} to column {column}: {e}")
-        #         continue
-
-        # if best_func:
-        #     y_fit = best_func(x_data[:len(y_data)], *best_popt)
-        #     ax.plot(x_data[:len(y_data)], y_data, 'o', label=f'Raw {column}')
-        #     ax.plot(x_data[:len(y_data)], y_fit, '-', label=f'Best Fit {column} ({best_func.__name__})')
-
-
         best_func = None
         best_rss = np.inf
 
@@ -876,7 +852,7 @@ def plot_euclidean_distances(
     # Create the DataFrame with these unique column names
     summary_data = pd.DataFrame(columns=column_names)
 
-    os.makedirs(f'plots/{time_folder}/{current_folder}', exist_ok=True)
+    os.makedirs(f'plots/{time_folder}/{current_folder}/{analysis_name}', exist_ok=True)
 
     name_function = AudioFile.get_by_sample_rate_name if is_by_sample_rate else AudioFile.get_by_file_type_name
 
@@ -902,19 +878,16 @@ def plot_euclidean_distances(
 
     ##### PLOT DATAFRAME #####
     summary_data = summary_data.sort_index()
-
-    summary_data.to_csv(f'plots/{time_folder}/{current_folder}/{analysis_name}_summary.csv')
+    summary_data.to_csv(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_summary.csv')
 
     apply_curve_fit(summary_data)
-
-    os.makedirs(f'plots/{time_folder}', exist_ok=True)
 
     plt.title(f'{current_folder} MFCC Euclidean Distance By Sample Rate and Encoding')
     plt.xlabel('Sample Rate (Hz)')
     plt.ylabel('Euclidean Distance of the MFCC')
     plt.legend()
-    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}_summary.svg')
-    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}_summary.png')
+    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_summary.svg')
+    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_summary.png')
     plt.show()
     plt.close()
     ##########################
@@ -970,28 +943,42 @@ def plot_euclidean_distances(
                 # plot_mfcc_error(master_sample_path, file.file_path)
 
 
-        ##### PLOT DATAFRAME #####
-        summary_data = summary_data.sort_index()
+    time_folder = '04-20_18-35'
+    # time_folder = '04-21_17-53'
+    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder, generate_normalized_files=False)
 
-        summary_data.to_csv("MANGO.csv")
+    for folder, folder_partitions in audio_recording_data.items():
 
-        fig, ax = plt.subplots()
+        master_sample_path: str = folder_partitions["master_filepath"]
 
-        for index, row in summary_data.iterrows():
-            x_value = index
-            for column in summary_data.columns:
-                y_values = row[column]
-                if not isinstance(y_values, list):
-                    continue
-                plt.plot([x_value] * len(y_values), y_values, 'o', label=column if index == summary_data.index[0] else "")
+        by_sample_rate: dict[int, list[AudioFile]] = folder_partitions["by_sample_rate"]
+        #### PLOT EUCLIDEAN DISTANCE BY SAMPLE RATE ####
+        summarized_euclidean_distance_by_sample_rate = plot_euclidean_distances(
+            data_dict=by_sample_rate,
+            time_folder=time_folder,
+            current_folder=folder,
+            master_sample_path=master_sample_path,
+            is_by_sample_rate=True,
+        )
+        ################################################
 
-        apply_curve_fit(summary_data)
+        #### PLOT MEAN SQUARED ERROR BY SAMPLE RATE ####
+        summarized_euclidean_distance_by_sample_rate = plot_mean_squared_error(
+            data_dict=by_sample_rate,
+            time_folder=time_folder,
+            current_folder=folder,
+            master_sample_path=master_sample_path,
+            is_by_sample_rate=True,
+        )
+        ################################################
 
-        plt.title(f'{folder} MFCC Euclidean Distance By Sample Rate and Encoding')
-        plt.xlabel('Sample Rate (Hz)')
-        plt.ylabel('Euclidean Distance of the MFCC')
-        plt.legend()
-        plt.savefig(f'plots/{time_folder}/{folder}_distance.svg')
-        plt.show()
-        plt.close()
-        ##########################
+        by_file_type: dict[int, list[AudioFile]] = folder_partitions["by_file_type"]
+        #### PLOT EUCLIDEAN DISTANCE BY FILE TYPE ####
+        summarized_euclidean_distance_by_file_type = plot_euclidean_distances(
+            data_dict=by_file_type,
+            time_folder=time_folder,
+            current_folder=folder,
+            master_sample_path=master_sample_path,
+            is_by_sample_rate=False,
+        )
+        ##############################################
