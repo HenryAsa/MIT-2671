@@ -748,26 +748,6 @@ def generate_plots_background_report():
         ##########################
 
 
-def compute_confidence_interval(x_data, x_dense, y_data, popt, func):
-    # Predicted y-data based on the optimized parameters for the actual x_data points
-    y_pred = func(x_data, *popt)
-    # Calculate the standard deviation of the residuals
-    residuals = y_data - y_pred
-    ss_res = np.sum(residuals**2)
-    std_err = np.sqrt(ss_res / (len(y_data) - len(popt)))
-    
-    # Standard error of the prediction
-    se_pred = std_err**2 * (1/len(y_data) + (x_dense - np.mean(x_data))**2 / np.sum((x_data - np.mean(x_data))**2))
-    se_pred = np.sqrt(se_pred)
-
-    # The t-value for 95% confidence interval
-    t_stat = stats.t.ppf(1 - 0.025, len(y_data) - len(popt))
-    
-    # The confidence interval
-    ci = t_stat * se_pred
-    return ci
-
-
 def apply_curve_fit(
         dataframe: pd.DataFrame
     ):
@@ -788,6 +768,10 @@ def apply_curve_fit(
 
     def logarithmic(x, a, b, c):
         return a * np.log(b * x + 1) + c
+
+    def logarithmic_string(a, b, c):
+        round_digits = 4
+        return f'{round(a, round_digits)} * log({round(b, round_digits)}) + {round(c, round_digits)}'
 
     functions = [proportional, linear, quadratic, cubic, exponential, logarithmic]
 
@@ -812,7 +796,7 @@ def apply_curve_fit(
             current_iteration += 1
             continue
 
-        x_data = np.array(x_data)
+        x_data = np.array(x_data) / 1000
         y_data = np.array(y_data)
 
         best_func = None
@@ -842,38 +826,33 @@ def apply_curve_fit(
             y_fit = best_func(x_dense, *best_popt)
 
             ax.plot(x_data, y_data, 'o', label=f'Raw {column}', color=colors[current_iteration])
-            ax.plot(x_dense, y_fit, '-', label=f'Fit {column} ({best_func.__name__})', color=colors[current_iteration])
-            
+            ax.plot(x_dense, y_fit, '-', label=f'Fit {column}', color=colors[current_iteration])
+            # ax.plot(x_dense, y_fit, '-', label=f'Fit {column} ({logarithmic_string(*best_popt)})', color=colors[current_iteration])
+
+
             #### CONFIDENCE INTERVAL CALCULATIONS AND PLOTTING ####
-            # Predicted y-data based on the optimized parameters for the actual x_data points
-            y_pred = best_func(x_data, *best_popt)
-            # Calculate the standard deviation of the residuals
-            residuals = y_data - y_pred
-            ss_res = np.sum(residuals**2)
-            std_err = np.sqrt(ss_res / (len(y_data) - len(best_popt)))
-            
-            # Standard error of the prediction
-            se_pred = std_err**2 * (1/len(y_data) + (x_dense - np.mean(x_data))**2 / np.sum((x_data - np.mean(x_data))**2))
-            se_pred = np.sqrt(se_pred)
+            # Compute the confidence interval for the fit parameters
+            alpha = 0.05  # 95% confidence interval -> 100*(1-alpha)
+            n = len(y_data)  # number of data points
+            p = len(best_popt)  # number of parameters
+            dof = max(0, n - p)  # degrees of freedom
+            # student-t value for the dof and confidence level
+            tval = stats.t.ppf(1.0-alpha/2., dof)
 
-            # The t-value for 95% confidence interval
-            t_stat = stats.t.ppf(1 - 0.025, len(y_data) - len(best_popt))
-            
-            # The confidence interval
-            ci = compute_confidence_interval(x_data, x_dense, y_data, best_popt, best_func)
-            ax.fill_between(x_dense, y_fit - ci, y_fit + ci, color=colors[current_iteration], alpha=0.3)
+            # Construct prediction interval of the function
+            y_pred = best_func(x_dense, *popt)
+            # Improved calculation of prediction interval
+            s_err = np.sqrt(np.sum((y_data - best_func(x_data, *best_popt))**2) / (n - p))
+            leverage = 1/n + (x_dense - np.mean(x_data))**2 / np.sum((x_data - np.mean(x_data))**2)
+            ci = tval * s_err * np.sqrt(leverage)
 
-            # ci = compute_confidence_interval(x_data, y_data, best_popt, best_func)
-            # # Plot the confidence interval
-            # ax.fill_between(x_dense, y_fit - ci, y_fit + ci, color=colors[current_iteration], alpha=0.3)
+            y_upper = y_pred + ci
+            y_lower = y_pred - ci
+
+            ax.fill_between(x_dense, y_lower, y_upper, color=colors[current_iteration], alpha=0.3, edgecolor='none', label=r'95% Confidence Bounds')
             #######################################################
 
         current_iteration += 1
-
-    ax.legend(ncols=2)
-    # plt.show()
-    
-    # plt.show()
 
 
 def plot_euclidean_distances(
@@ -898,8 +877,7 @@ def plot_euclidean_distances(
     # Create the DataFrame with these unique column names
     summary_data = pd.DataFrame(columns=column_names)
 
-    os.makedirs(f'plots/{time_folder}/{current_folder}/{analysis_name}', exist_ok=True)
-
+    os.makedirs(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}', exist_ok=True)
 
     for sample_rate, files in data_dict.items():
         sample_paths = sorted(files)
@@ -932,11 +910,13 @@ def plot_euclidean_distances(
     # plt.rc("line", **MATPLOTLIB_LINE_DEFAULTS)
     # plt.rc("font", **MATPLOTLIB_FONT_DEFAULTS)
     # plt.title(f'{current_folder} MFCC Euclidean Distance By Sample Rate and Encoding')
-    plt.xlabel('Sample Rate (Hz)')
+    plt.xlabel('Sample Rate (kHz)')
     plt.ylabel('Euclidean Distance of the MFCC')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary.pdf')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary.png')
     plt.legend(ncols=2)
-    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_summary.pdf')
-    plt.savefig(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_summary.png')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.pdf')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.png')
     # plt.show()
     plt.close()
     ##########################
