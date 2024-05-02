@@ -770,8 +770,8 @@ def apply_curve_fit(
         return a * np.log(b * x + 1) + c
 
     def logarithmic_string(a, b, c):
-        round_digits = 4
-        return f'{round(a, round_digits)} * log({round(b, round_digits)}) + {round(c, round_digits)}'
+        round_digits = 2
+        return fr'${round(a, round_digits)} \cdot \log{{{round(b, round_digits)}}} + {round(c, round_digits)}$'
 
     functions = [proportional, linear, quadratic, cubic, exponential, logarithmic]
 
@@ -972,8 +972,6 @@ def plot_mean_squared_error(
 
 if __name__ == "__main__":
 
-    # time_folder = '04-20_18-35'
-    # time_folder = '04-21_17-53'
     for time_folder in ['04-20_18-35', '04-21_17-53']:
         print(f'_S{192 if time_folder == "04-20_18-35" else 48}000_B24_NORMALIZED.wav')
         audio_recording_data = load_data_by_partitions(
