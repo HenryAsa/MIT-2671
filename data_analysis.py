@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.cm
 import librosa
 import numpy as np
 import os
@@ -6,6 +7,7 @@ import pandas as pd
 from scipy.io import wavfile
 from scipy.spatial.distance import euclidean
 from scipy.optimize import curve_fit
+from scipy import stats
 from pydub import AudioSegment
 
 from audio_file_rep import AudioFile
@@ -746,6 +748,26 @@ def generate_plots_background_report():
         ##########################
 
 
+def compute_confidence_interval(x_data, x_dense, y_data, popt, func):
+    # Predicted y-data based on the optimized parameters for the actual x_data points
+    y_pred = func(x_data, *popt)
+    # Calculate the standard deviation of the residuals
+    residuals = y_data - y_pred
+    ss_res = np.sum(residuals**2)
+    std_err = np.sqrt(ss_res / (len(y_data) - len(popt)))
+    
+    # Standard error of the prediction
+    se_pred = std_err**2 * (1/len(y_data) + (x_dense - np.mean(x_data))**2 / np.sum((x_data - np.mean(x_data))**2))
+    se_pred = np.sqrt(se_pred)
+
+    # The t-value for 95% confidence interval
+    t_stat = stats.t.ppf(1 - 0.025, len(y_data) - len(popt))
+    
+    # The confidence interval
+    ci = t_stat * se_pred
+    return ci
+
+
 def apply_curve_fit(
         dataframe: pd.DataFrame
     ):
@@ -808,12 +830,11 @@ def apply_curve_fit(
                     best_rss = rss
                     best_func = func
                     best_popt = popt
+                    best_pcov = pcov
 
             except Exception as e:
                 print(f"Error fitting data in column {column}: {e}")
                 continue
-
-        mean, l_bound, h_bound = compute_confidence_interval(x_data)
 
         if best_func:
             # Generate a dense set of x-values for plotting the smooth curve
@@ -822,8 +843,33 @@ def apply_curve_fit(
 
             ax.plot(x_data, y_data, 'o', label=f'Raw {column}', color=colors[current_iteration])
             ax.plot(x_dense, y_fit, '-', label=f'Fit {column} ({best_func.__name__})', color=colors[current_iteration])
+            
+            #### CONFIDENCE INTERVAL CALCULATIONS AND PLOTTING ####
+            # Predicted y-data based on the optimized parameters for the actual x_data points
+            y_pred = best_func(x_data, *best_popt)
+            # Calculate the standard deviation of the residuals
+            residuals = y_data - y_pred
+            ss_res = np.sum(residuals**2)
+            std_err = np.sqrt(ss_res / (len(y_data) - len(best_popt)))
+            
+            # Standard error of the prediction
+            se_pred = std_err**2 * (1/len(y_data) + (x_dense - np.mean(x_data))**2 / np.sum((x_data - np.mean(x_data))**2))
+            se_pred = np.sqrt(se_pred)
+
+            # The t-value for 95% confidence interval
+            t_stat = stats.t.ppf(1 - 0.025, len(y_data) - len(best_popt))
+            
+            # The confidence interval
+            ci = compute_confidence_interval(x_data, x_dense, y_data, best_popt, best_func)
+            ax.fill_between(x_dense, y_fit - ci, y_fit + ci, color=colors[current_iteration], alpha=0.3)
+
+            # ci = compute_confidence_interval(x_data, y_data, best_popt, best_func)
+            # # Plot the confidence interval
+            # ax.fill_between(x_dense, y_fit - ci, y_fit + ci, color=colors[current_iteration], alpha=0.3)
+            #######################################################
 
         current_iteration += 1
+
     ax.legend(ncols=2)
     # plt.show()
     
