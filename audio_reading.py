@@ -179,12 +179,3 @@ def simultaneous_record_playback(
                 file.write(q.get())
 
     sd.stop()
-
-
-if __name__ == "__main__":
-    initial_time = datetime.now().strftime("%m-%d_%H-%M")
-    shared_output_directory = f'{DATA_DIRECTORY}/{initial_time}'
-
-    generate_single_frequency_audio_files(output_directory=f'{shared_output_directory}/{DATA_AUDIO_SAMPLES_DIRECTORY}')
-    read_simple_audio_samples(audio_samples_directory=f'{shared_output_directory}/{DATA_AUDIO_SAMPLES_DIRECTORY}', output_directory=f'{shared_output_directory}/{DATA_RECORDED_SAMPLES_DIRECTORY}')
-    # read_simple_audio_samples(audio_samples_directory="music", output_directory=f'music')

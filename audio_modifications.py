@@ -6,7 +6,7 @@ import numpy as np
 import soundfile as sf
 
 from constants import DATA_NORMALIZED_SAMPLES_DIRECTORY, DATA_RECORDED_SAMPLES_DIRECTORY, MP3_BITRATES, TEST_BIT_DEPTHS, TEST_SAMPLE_RATES
-from collecting_data import simultaneous_record_playback
+from audio_reading import simultaneous_record_playback
 from utils import get_audio_params_from_filepath, initialize_data_folders
 
 
@@ -283,4 +283,3 @@ if __name__ == "__main__":
                 output_directory=output_file_directory,
                 output_filename=output_filename,
             )
-            # audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')
