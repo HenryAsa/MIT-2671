@@ -105,7 +105,7 @@ def plot_waveform(
     colormap = get_cmap('viridis')
     color = colormap(current_call_num / num_datasets)
 
-    plt.step(time_period, data_period, where='mid', label=f'Sample Rate = {sample_rate/1000} kHz' if label=="" else label, ls=line_style, color=color)
+    plt.step(time_period * 1000, data_period, where='mid', label=f'Sample Rate = {sample_rate/1000} kHz' if label=="" else label, ls=line_style, color=color, linewidth=(8 if current_call_num < num_datasets - 4 else 16 - 3*(current_call_num % 4) if current_call_num < num_datasets else 3))
     # plt.step(time_period, data_period, where='mid', label=f'Sample Rate = {sample_rate/1000} kHz' if label=="" else label, ls=line_style)
 
 
@@ -174,7 +174,7 @@ if __name__ == "__main__":
                 normalize_data(audio_file),
                 sample_rate=sample_rate,
                 frequency=frequency,
-                num_waves=1/16,
+                num_waves=1.2,
                 current_call_num=index,
                 num_datasets=len(plot_files)-1,
                 # label=file,
@@ -183,7 +183,7 @@ if __name__ == "__main__":
         plot_filepath = f'plots/frequencies/{initial_time}/F{frequency}'
         plt.title(f'Single-Frequency Waveform at f = {frequency} Hz')
         plt.legend()
-        plt.xlabel("Time [s]")
+        plt.xlabel("Time [ms]")
         plt.ylabel("Amplitude")
         os.makedirs(plot_filepath, exist_ok = True)
         plt.savefig(f'{plot_filepath}/sine_F{frequency}_by_SR.pdf')
