@@ -2,9 +2,9 @@
 
 import os
 from pathlib import Path
-from audio_modifications import convert_aif_to_wav, crop_audio, remaster_audio_file
+from audio_modifications import crop_audio, remaster_audio_file
 from audio_reading import simultaneous_record_playback
-from utils import get_audio_params_from_filepath, get_filetype_from_folder, initialize_data_folders
+from utils import get_audio_params_from_filepath, initialize_data_folders
 
 
 if __name__ == "__main__":
@@ -63,4 +63,3 @@ if __name__ == "__main__":
                 output_directory=output_file_directory,
                 output_filename=output_filename,
             )
-            # audio_samples_directory="audio_test_samples", output_directory=f'{shared_output_directory}/recorded_samples')

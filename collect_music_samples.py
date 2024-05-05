@@ -1,12 +1,12 @@
+
 import os
 from pathlib import Path
-
 from audio_modifications import crop_audio, remaster_audio_file
 from audio_reading import simultaneous_record_playback
 from utils import get_audio_params_from_filepath, initialize_data_folders
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     samples_output_directory, recorded_output_directory = initialize_data_folders()
 
     audio_samples = {
