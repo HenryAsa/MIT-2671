@@ -103,8 +103,6 @@ def load_data_by_partitions(
                 normalize_audio(all_trial_files + [f'{unique_file}_AVG.wav'])
         ###############################
 
-        raise KeyboardInterrupt
-
         normalized_filepaths = set(get_filetype_from_folder(f'{normalized_samples_folder_path}/{song_folder}', '.wav'))
 
         try:
@@ -703,7 +701,7 @@ def compare_files_to_master(
 
 def generate_plots_background_report():
     time_folder = '04-02_00-44'
-    audio_recording_data = load_data_by_paritions(time_folder_name=time_folder)
+    audio_recording_data = load_data_by_partitions(time_folder_name=time_folder)
 
     for folder, folder_partitions in audio_recording_data.items():
 
@@ -775,8 +773,8 @@ def apply_curve_fit(
         return a * np.log(b * x + 1) + c
 
     def logarithmic_string(a, b, c):
-        round_digits = 2
-        return fr'${round(a, round_digits)} \cdot \log{{{round(b, round_digits)}}} + {round(c, round_digits)}$'
+        round_digits = 1
+        return fr'${round(a, round_digits)} \cdot \log({{{round(b, round_digits)}}}) + {round(c, round_digits)}$'
 
     functions = [proportional, linear, quadratic, cubic, exponential, logarithmic]
 
@@ -830,8 +828,8 @@ def apply_curve_fit(
             x_dense = np.linspace(min(x_data), max(x_data), 1000)
             y_fit = best_func(x_dense, *best_popt)
 
-            ax.plot(x_data, y_data, 'o', label=f'Raw {column}', color=colors[current_iteration])
-            ax.plot(x_dense, y_fit, '-', label=f'Fit {column}', color=colors[current_iteration])
+            ax.plot(x_data, y_data, 'o', color=colors[current_iteration], markersize=16-0.6*current_iteration, label=f'Raw {column}')
+            ax.plot(x_dense, y_fit, '-', color=colors[current_iteration], label=f'Logarithmic Fit: {logarithmic_string(*best_popt)}', label=f'Fit {column}')
             # ax.plot(x_dense, y_fit, '-', label=f'Fit {column} ({logarithmic_string(*best_popt)})', color=colors[current_iteration])
 
 
@@ -845,7 +843,7 @@ def apply_curve_fit(
             tval = stats.t.ppf(1.0-alpha/2., dof)
 
             # Construct prediction interval of the function
-            y_pred = best_func(x_dense, *popt)
+            y_pred = best_func(x_dense, *best_popt)
             # Improved calculation of prediction interval
             s_err = np.sqrt(np.sum((y_data - best_func(x_data, *best_popt))**2) / (n - p))
             leverage = 1/n + (x_dense - np.mean(x_data))**2 / np.sum((x_data - np.mean(x_data))**2)
@@ -854,7 +852,7 @@ def apply_curve_fit(
             y_upper = y_pred + ci
             y_lower = y_pred - ci
 
-            ax.fill_between(x_dense, y_lower, y_upper, color=colors[current_iteration], alpha=0.3, edgecolor='none', label=r'95% Confidence Bounds')
+            ax.fill_between(x_dense, y_lower, y_upper, color=colors[current_iteration], alpha=0.3, edgecolor='none', label=fr'95% Confidence Bounds {logarithmic_string(*best_popt)}')
             #######################################################
 
         current_iteration += 1
@@ -882,7 +880,7 @@ def plot_euclidean_distances(
     # Create the DataFrame with these unique column names
     summary_data = pd.DataFrame(columns=column_names)
 
-    os.makedirs(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}', exist_ok=True)
+    os.makedirs(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}', exist_ok=True)
 
     for sample_rate, files in data_dict.items():
         sample_paths = sorted(files)
@@ -912,16 +910,14 @@ def plot_euclidean_distances(
 
     apply_curve_fit(summary_data)
 
-    # plt.rc("line", **MATPLOTLIB_LINE_DEFAULTS)
-    # plt.rc("font", **MATPLOTLIB_FONT_DEFAULTS)
     # plt.title(f'{current_folder} MFCC Euclidean Distance By Sample Rate and Encoding')
     plt.xlabel('Sample Rate (kHz)')
     plt.ylabel('Euclidean Distance of the MFCC')
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary.pdf')
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary.png')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary.pdf')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary.png')
     plt.legend(ncols=2)
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.pdf')
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.png')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.pdf')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.png')
     # plt.show()
     plt.close()
     ##########################
@@ -981,7 +977,7 @@ if __name__ == "__main__":
         print(f'_S{192 if time_folder == "04-20_18-35" else 48}000_B24_NORMALIZED.wav')
         audio_recording_data = load_data_by_partitions(
             time_folder_name=time_folder,
-            generate_normalized_files=True,
+            generate_normalized_files=False,
             master_sample_filename_ending=f'_S{192 if time_folder == "04-20_18-35" else 48}000_B24_NORMALIZED.wav',
         )
 
