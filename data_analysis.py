@@ -1,3 +1,4 @@
+import math
 import matplotlib.pyplot as plt
 import librosa
 import numpy as np
@@ -784,6 +785,14 @@ def apply_curve_fit(
 
     current_iteration = 0
 
+    #### MAKE DIFFERENT COLORMAPS FOR MP3 AND WAV ####
+    mp3_columns = [col for col in dataframe.columns if col.startswith("MP3:")]
+    wav_columns = [col for col in dataframe.columns if col.startswith("WAV:")]
+
+    mp3_colors = plt.cm.Blues(np.linspace(0.25, 0.8, len(mp3_columns)))
+    wav_colors = plt.cm.OrRd(np.linspace(0.25, 0.8, len(wav_columns)))
+    ##################################################
+
     for column in dataframe.columns:  # Assuming first column is index or non-numeric
         x_data = []
         y_data = []
@@ -806,6 +815,9 @@ def apply_curve_fit(
         best_rss = np.inf
 
         for func in functions:
+            if func != logarithmic:
+                continue
+
             # Fit the curve
             try:
                 popt, pcov = curve_fit(func, x_data, y_data, maxfev=10000)
@@ -828,8 +840,19 @@ def apply_curve_fit(
             x_dense = np.linspace(min(x_data), max(x_data), 1000)
             y_fit = best_func(x_dense, *best_popt)
 
-            ax.plot(x_data, y_data, 'o', color=colors[current_iteration], markersize=16-0.6*current_iteration, label=f'Raw {column}')
-            ax.plot(x_dense, y_fit, '-', color=colors[current_iteration], label=f'Logarithmic Fit: {logarithmic_string(*best_popt)}', label=f'Fit {column}')
+            # Select color
+            if column in mp3_columns:
+                color = mp3_colors[mp3_columns.index(column)]
+                marker = 'o'
+            elif column in wav_columns:
+                color = wav_colors[wav_columns.index(column)]
+                marker = 'o'
+
+            color = colors[current_iteration]
+
+            # ax.plot(x_data, y_data, marker, color=color, markersize=20, label=f'{column}')
+            ax.plot(x_data, y_data, marker, color=color, markersize=16-0.6*current_iteration, label=f'{column}')
+            ax.plot(x_dense, y_fit, '-', color=color)#, label=f'Logarithmic Fit: {logarithmic_string(*best_popt)}')#, label=f'Fit {column}')
             # ax.plot(x_dense, y_fit, '-', label=f'Fit {column} ({logarithmic_string(*best_popt)})', color=colors[current_iteration])
 
 
@@ -852,10 +875,12 @@ def apply_curve_fit(
             y_upper = y_pred + ci
             y_lower = y_pred - ci
 
-            ax.fill_between(x_dense, y_lower, y_upper, color=colors[current_iteration], alpha=0.3, edgecolor='none', label=fr'95% Confidence Bounds {logarithmic_string(*best_popt)}')
+            ax.fill_between(x_dense, y_lower, y_upper, color=color, alpha=0.3, edgecolor='none')#, label=fr'95% Confidence Bounds {logarithmic_string(*best_popt)}')
             #######################################################
 
         current_iteration += 1
+    # plt.colorbar(plt.cm.ScalarMappable(cmap=plt.get_cmap("Blues")), ax=ax, orientation='vertical', label='MP3', ticks=np.linspace(0, 1, len(mp3_columns)), format=mticker.FixedFormatter(mp3_columns))
+    # plt.colorbar(plt.cm.ScalarMappable(cmap=plt.get_cmap("OrRd")), ax=ax, orientation='vertical', label='WAV', ticks=np.linspace(0, 1, len(wav_columns)), format=mticker.FixedFormatter(wav_columns))
 
 
 def plot_euclidean_distances(
@@ -865,6 +890,7 @@ def plot_euclidean_distances(
         master_sample_path: str,
         is_by_sample_rate: bool = True,
     ) -> pd.DataFrame:
+    folder_suffix = 'DIFF-COLOR-3'
 
     analysis_name = f'euclidean-distance-{"bySR" if is_by_sample_rate else "byFT"}'
     name_function = AudioFile.get_by_sample_rate_name if is_by_sample_rate else AudioFile.get_by_file_type_name
@@ -880,7 +906,10 @@ def plot_euclidean_distances(
     # Create the DataFrame with these unique column names
     summary_data = pd.DataFrame(columns=column_names)
 
-    os.makedirs(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}', exist_ok=True)
+    os.makedirs(f'plots/{time_folder}/{current_folder}-{folder_suffix}/{analysis_name}', exist_ok=True)
+
+    y_min = math.inf
+    y_max = -math.inf
 
     for sample_rate, files in data_dict.items():
         sample_paths = sorted(files)
@@ -889,6 +918,9 @@ def plot_euclidean_distances(
         for file in sample_paths:
             euclidean_distance = audio_similarity_euclidean_mfcc(master_sample_path, file.file_path)
             print(f'{euclidean_distance}\t{file.file_path.split("/")[-1]}')
+
+            y_min = min(y_min, euclidean_distance)
+            y_max = max(y_max, euclidean_distance)
 
             try:
                 current_value = summary_data.loc[file.sample_rate, name_function(file)]
@@ -904,21 +936,21 @@ def plot_euclidean_distances(
 
     ##### PLOT DATAFRAME #####
     summary_data = summary_data.sort_index()
-    summary_data.to_csv(f'plots/{time_folder}/{current_folder}/{analysis_name}/{analysis_name}_{current_folder}_summary.csv')
+    summary_data.to_csv(f'plots/{time_folder}/{current_folder}-{folder_suffix}/{analysis_name}/{analysis_name}_{current_folder}_summary.csv')
 
     fig, ax = plt.subplots()
 
     apply_curve_fit(summary_data)
 
     # plt.title(f'{current_folder} MFCC Euclidean Distance By Sample Rate and Encoding')
+    # plt.ylim(y_min, y_max)
     plt.xlabel('Sample Rate (kHz)')
     plt.ylabel('Euclidean Distance of the MFCC')
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary.pdf')
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary.png')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-{folder_suffix}/{analysis_name}/{analysis_name}_{current_folder}_summary.pdf')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-{folder_suffix}/{analysis_name}/{analysis_name}_{current_folder}_summary.png')
     plt.legend(ncols=2)
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.pdf')
-    plt.savefig(f'plots/{time_folder}/{current_folder}-CI-Bounds/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.png')
-    # plt.show()
+    plt.savefig(f'plots/{time_folder}/{current_folder}-{folder_suffix}/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.pdf')
+    plt.savefig(f'plots/{time_folder}/{current_folder}-{folder_suffix}/{analysis_name}/{analysis_name}_{current_folder}_summary_LEGEND.png')
     plt.close()
     ##########################
 
