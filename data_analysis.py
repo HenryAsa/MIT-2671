@@ -893,7 +893,7 @@ def plot_euclidean_distances(
         master_sample_path: str,
         is_by_sample_rate: bool = True,
     ) -> pd.DataFrame:
-    folder_suffix = 'DIFF-COLOR-3'
+    folder_suffix = 'FINAL-PAPER'
 
     analysis_name = f'euclidean-distance-{"bySR" if is_by_sample_rate else "byFT"}'
     name_function = AudioFile.get_by_sample_rate_name if is_by_sample_rate else AudioFile.get_by_file_type_name
@@ -920,7 +920,7 @@ def plot_euclidean_distances(
 
         for file in sample_paths:
             euclidean_distance = audio_similarity_euclidean_mfcc(master_sample_path, file.file_path)
-            print(f'{euclidean_distance}\t{file.file_path.split("/")[-1]}')
+            # print(f'{euclidean_distance}\t{file.file_path.split("/")[-1]}')
 
             y_min = min(y_min, euclidean_distance)
             y_max = max(y_max, euclidean_distance)
