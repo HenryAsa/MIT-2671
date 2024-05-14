@@ -801,6 +801,9 @@ def apply_curve_fit(
         for index, row in dataframe.iterrows():
             y_values = row[column]
             if isinstance(y_values, list):
+                # if row.name in {82000, 96000, 192000}:
+                #     print(f'SKIPPING {row.name}')
+                #     continue
                 x_data.extend([index] * len(y_values))
                 y_data.extend(y_values)
 
