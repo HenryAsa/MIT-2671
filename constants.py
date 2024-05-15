@@ -63,7 +63,7 @@ TEST_BIT_DEPTHS = [8, 16, 24]
 """Bit depths to use for testing (in bits)"""
 
 
-MATPLOTLIB_DEFAULTS = { ## https://matplotlib.org/stable/api/matplotlib_configuration_api.html#matplotlib.RcParams
+MATPLOTLIB_NORMAL_DEFAULTS = { ## https://matplotlib.org/stable/api/matplotlib_configuration_api.html#matplotlib.RcParams
     "axes.labelsize": 30,
     "axes.titlesize": 40,
     "figure.figsize": [20, 12],
@@ -79,3 +79,24 @@ MATPLOTLIB_DEFAULTS = { ## https://matplotlib.org/stable/api/matplotlib_configur
     "ytick.labelsize": 24,
 }
 """Default styling presets for Matplotlib plots"""
+
+MATPLOTLIB_SMALL_PLOT_DEFAULTS = { ## https://matplotlib.org/stable/api/matplotlib_configuration_api.html#matplotlib.RcParams
+    "axes.labelsize": 40,
+    "axes.titlesize": 50,
+    "figure.figsize": [20, 12],
+    "figure.subplot.left": 0.09,
+    "figure.subplot.right": 1 - 0.02,
+    "figure.subplot.bottom": 0.1,
+    "figure.subplot.top": 1 - 0.01,
+    "legend.fontsize": 30,
+    "legend.markerscale": 2,
+    "lines.markersize": 10,
+    "lines.linewidth": 6,
+    "savefig.dpi": 600,
+    "xtick.labelsize": 35,
+    "ytick.labelsize": 35,
+}
+"""Styling presets for Matplotlib plots when making small plots"""
+
+MATPLOTLIB_DEFAULTS = MATPLOTLIB_SMALL_PLOT_DEFAULTS
+"""Styling presets for Matplotlib plots"""
